@@ -344,11 +344,11 @@ func (s *AIService) GenerateSolutionByLatexStream(
 func (s *AIService) classifyImageMeta(ctx context.Context, imageBase64 string) (*classifyResult, error) {
 	imageURL := fmt.Sprintf("data:image/jpeg;base64,%s", imageBase64)
 	messages := []*schema.Message{
-		schema.SystemMessage("You are an exam classification agent."),
+		schema.SystemMessage("你是一位试题分类专家。"),
 		{
 			Role: schema.User,
 			UserInputMultiContent: []schema.MessageInputPart{
-				{Type: schema.ChatMessagePartTypeText, Text: "先判断图片的学科和题目类型。question_type 仅可为 choice/fill_blank/essay/unknown。"},
+				{Type: schema.ChatMessagePartTypeText, Text: "先判断图片的学科和题目类型。学科类型为数学/物理/化学/生物，题目类型为选择题/填空题/解答题。只需要根据图片内容进行判断，不要根据其他信息猜测。"},
 				{
 					Type: schema.ChatMessagePartTypeImageURL,
 					Image: &schema.MessageInputImage{
@@ -420,7 +420,7 @@ func (s *AIService) solveByLatex(ctx context.Context, meta *classifyResult, late
 
 	prompt := fmt.Sprintf("请对以下%s题进行解答，输出可直接展示的latex结果。必须通过 toolcall 返回两个字段：latex_answer(最终答案) 与 latex_solution(分步解答)。不要输出框架外内容。\\n\\n题目latex:\\n%s", meta.QuestionType, latexOut.LatexQuestion)
 	messages := []*schema.Message{
-		schema.SystemMessage("You are a math exam solving agent."),
+		schema.SystemMessage("你是一位试题解答专家。"),
 		schema.UserMessage(prompt),
 	}
 
@@ -459,7 +459,7 @@ func (s *AIService) generateTags(ctx context.Context, meta *classifyResult, late
 	)
 
 	messages := []*schema.Message{
-		schema.SystemMessage("You are a tagging agent for exam questions."),
+		schema.SystemMessage("你是一位资深的教育专家，擅长根据题目内容和解答提炼知识点标签。"),
 		schema.UserMessage(prompt),
 	}
 
@@ -695,38 +695,38 @@ func inferTags(latex string) []string {
 
 func buildExamPrompt(questionType string, subject string) string {
 	fence := "```"
-	base := "识别试卷题目并排版为`exam-zh`可用的latex格式的完美可用的提示词如下：\n\n" +
+	base :=
 		"选择题（可能是单选，也可能是多选，不要默认单选）：\n\n" +
-		fence + "latex\n" +
-		"\\begin{question}[index=1]\n" +
-		"    $\\frac{3}{4}$的相反数是\\pa\n" +
-		"    \\begin{choices}[columns=4]\n" +
-		"        \\item $-\\frac{3}{4}$\n" +
-		"        \\item $\\frac{3}{4}$\n" +
-		"        \\item $\\frac{4}{3}$\n" +
-		"        \\item $-\\frac{4}{3}$\n" +
-		"    \\end{choices}\n" +
-		"\\end{question}\n" +
-		fence + "\n\n" +
-		"填空题：\n\n" +
-		fence + "latex\n" +
-		"\\begin{question}\n" +
-		"    己知$\\triangle ABC$为锐角三角形，且$AB=5$，$AC=6$，$\\triangle ABC$的面积为$6\\sqrt{6}$，则$BC=$\\fillin[width = 4em][]。\n" +
-		"\\end{question}\n" +
-		fence + "\n\n" +
-		"大题：\n\n" +
-		fence + "latex\n" +
-		"\\begin{question}[index=20]\n" +
-		"    大题题干在这里。\n" +
-		"    \\begin{enumerate}\n" +
-		"        \\item 入射电子的德布罗意波长$\\lambda_e$；\n" +
-		"        \\item 该靶原子K系特征X射线$K\\alpha$线的波长$\\lambda$；\n" +
-		"        \\item 根据实验数据估算该靶原子M层的电离能$E_M$；\n" +
-		"        \\item 有同学发现用带电粒子在电场中的运动也能完成对电子速度的测定，请设计实验方案，并指出需要测定的物理量和计算方法。\n" +
-		"    \\end{enumerate}\n" +
-		"\\end{question}\n" +
-		fence + "\n\n" +
-		"识别图中的题型，按照上面的格式排版图片中的内容，使用latex代码块返回，括号用\\pa来表示，不需要其他内容，不必解题。若题面包含'多选'/'可多选'等信息请保留并按多选语义排版。"
+			fence + "latex\n" +
+			"\\begin{question}[index=1]\n" +
+			"    $\\frac{3}{4}$的相反数是\\pa\n" +
+			"    \\begin{choices}[columns=4]\n" +
+			"        \\item $-\\frac{3}{4}$\n" +
+			"        \\item $\\frac{3}{4}$\n" +
+			"        \\item $\\frac{4}{3}$\n" +
+			"        \\item $-\\frac{4}{3}$\n" +
+			"    \\end{choices}\n" +
+			"\\end{question}\n" +
+			fence + "\n\n" +
+			"填空题：\n\n" +
+			fence + "latex\n" +
+			"\\begin{question}\n" +
+			"    己知$\\triangle ABC$为锐角三角形，且$AB=5$，$AC=6$，$\\triangle ABC$的面积为$6\\sqrt{6}$，则$BC=$\\fillin[width = 4em][]。\n" +
+			"\\end{question}\n" +
+			fence + "\n\n" +
+			"大题：\n\n" +
+			fence + "latex\n" +
+			"\\begin{question}[index=20]\n" +
+			"    大题题干在这里。\n" +
+			"    \\begin{enumerate}\n" +
+			"        \\item 入射电子的德布罗意波长$\\lambda_e$；\n" +
+			"        \\item 该靶原子K系特征X射线$K\\alpha$线的波长$\\lambda$；\n" +
+			"        \\item 根据实验数据估算该靶原子M层的电离能$E_M$；\n" +
+			"        \\item 有同学发现用带电粒子在电场中的运动也能完成对电子速度的测定，请设计实验方案，并指出需要测定的物理量和计算方法。\n" +
+			"    \\end{enumerate}\n" +
+			"\\end{question}\n" +
+			fence + "\n\n" +
+			"识别图中的题型，按照上面的格式排版图片中的内容，使用latex代码块返回，括号用\\pa来表示，不需要其他内容，不必解题。其中index为题号，若图中有题号，则优先使用，否则始终等于1；columns为选项列数，按照选项长度生成。若题面包含'多选'/'可多选'等信息请保留并按多选语义排版。"
 
 	meta := fmt.Sprintf("\n\n已知分类结果：subject=%s, question_type=%s。请优先按该题型输出。", subject, questionType)
 	return base + meta
