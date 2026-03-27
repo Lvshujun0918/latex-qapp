@@ -25,6 +25,7 @@
     "@ionic/vue-router": "^8.0.0",
     "axios": "^1.13.6",
     "ionicons": "^7.0.0",
+    "katex": "^0.16.43",
     "pinia": "^3.0.4",
     "vue": "^3.3.0",
     "vue-router": "^4.2.0"
