@@ -12,8 +12,9 @@
         </ion-card-header>
         <ion-card-content>
           <p>学科：{{ record.subject }}</p>
+          <p>题型：{{ record.questionType || 'unknown' }}</p>
           <p>同步状态：{{ record.syncStatus }}</p>
-          <p class="latex-block">{{ record.latexSource }}</p>
+          <latex-view :source="record.latexSource" class="latex-block" />
         </ion-card-content>
       </ion-card>
       <ion-button expand="block" @click="toAnalysis">AI 解析</ion-button>
@@ -22,16 +23,21 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { IonButton, IonCard, IonCardContent, IonCardHeader, IonCardTitle, IonContent, IonHeader, IonPage, IonTitle, IonToolbar } from '@ionic/vue';
 import { useRecordStore } from '@/stores/record';
+import LatexView from '@/components/LatexView.vue';
 
 const route = useRoute();
 const router = useRouter();
 const recordStore = useRecordStore();
 
 const record = computed(() => recordStore.records.find((r) => r.id === Number(route.params.id)));
+
+onMounted(() => {
+  recordStore.reload();
+});
 
 function toAnalysis() {
   router.push(`/records/${route.params.id}/analysis`);
@@ -40,7 +46,10 @@ function toAnalysis() {
 
 <style scoped>
 .latex-block {
-  white-space: pre-wrap;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+  margin-top: 10px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.52);
+  border: 1px solid rgba(255, 255, 255, 0.48);
+  padding: 10px 12px;
 }
 </style>

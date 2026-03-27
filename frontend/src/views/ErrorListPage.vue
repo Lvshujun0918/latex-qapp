@@ -8,7 +8,7 @@
     <ion-content class="ion-padding">
       <ion-loading
         :is-open="isGenerating"
-        message="正在拍照识别，请稍候..."
+        :message="generatingMessage"
         spinner="crescent"
         backdrop-dismiss="false"
       />
@@ -54,17 +54,22 @@
 
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
-import { ref } from 'vue';
+import { onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { IonBadge, IonButton, IonCard, IonCardContent, IonCardHeader, IonCardSubtitle, IonCardTitle, IonContent, IonHeader, IonIcon, IonItem, IonLabel, IonList, IonLoading, IonPage, IonSearchbar, IonTitle, IonToolbar, toastController } from '@ionic/vue';
 import { camera, sparkles } from 'ionicons/icons';
 import { useRecordStore } from '@/stores/record';
-import { capturePhotoAsBase64, generateLatexDraftByVision, saveVisionDraftToStorage } from '@/services/ai';
+import { capturePhotoAsBase64, generateLatexDraftByVisionStream, saveVisionDraftToStorage } from '@/services/ai';
 
 const router = useRouter();
 const recordStore = useRecordStore();
 const { records } = storeToRefs(recordStore);
 const isGenerating = ref(false);
+const generatingMessage = ref('正在识别题目与标签...');
+
+onMounted(() => {
+  recordStore.reload();
+});
 
 function toDetail(id: number) {
   router.push(`/records/${id}`);
@@ -77,8 +82,26 @@ async function createFromCamera() {
 
   try {
     isGenerating.value = true;
+    generatingMessage.value = '正在拍照...';
     const imageBase64 = await capturePhotoAsBase64();
-    const draft = await generateLatexDraftByVision(imageBase64);
+    const draft = await generateLatexDraftByVisionStream(imageBase64, (evt) => {
+      switch (evt.stage) {
+        case 'classify':
+          generatingMessage.value = '正在识别学科与题型...';
+          break;
+        case 'latex':
+          generatingMessage.value = '正在生成题目 LaTeX...';
+          break;
+        case 'tags':
+          generatingMessage.value = '正在生成标签...';
+          break;
+        case 'final':
+          generatingMessage.value = '识别完成，正在进入编辑页...';
+          break;
+        default:
+          break;
+      }
+    });
 
     if (!draft.latexQuestion.trim()) {
       throw new Error('识别结果为空');
@@ -96,6 +119,7 @@ async function createFromCamera() {
     await toast.present();
   } finally {
     isGenerating.value = false;
+    generatingMessage.value = '正在识别题目与标签...';
   }
 }
 </script>
