@@ -9,7 +9,7 @@
       <ion-card>
         <ion-card-header>
           <ion-card-subtitle>账号</ion-card-subtitle>
-          <ion-card-title>{{ authStore.username || '未登录' }}</ion-card-title>
+          <ion-card-title>{{ authStore.displayName || authStore.username || '未登录' }}</ion-card-title>
         </ion-card-header>
         <ion-card-content>
           待同步：{{ recordStore.pendingCount }} 条
@@ -31,6 +31,7 @@
 </template>
 
 <script setup lang="ts">
+import { onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { IonButton, IonCard, IonCardContent, IonCardHeader, IonCardSubtitle, IonCardTitle, IonContent, IonHeader, IonItem, IonLabel, IonList, IonPage, IonTitle, IonToolbar } from '@ionic/vue';
 import { useAuthStore } from '@/stores/auth';
@@ -40,6 +41,10 @@ import { syncNow } from '@/services/sync';
 const authStore = useAuthStore();
 const recordStore = useRecordStore();
 const router = useRouter();
+
+onMounted(() => {
+  recordStore.reload();
+});
 
 async function toSync() {
   await syncNow();

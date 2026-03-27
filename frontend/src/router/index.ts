@@ -2,12 +2,10 @@ import { createRouter, createWebHistory } from '@ionic/vue-router';
 import { RouteRecordRaw } from 'vue-router';
 import TabsPage from '../views/TabsPage.vue';
 
-const isDevServe = import.meta.env.DEV;
-
 const routes: Array<RouteRecordRaw> = [
   {
     path: '/',
-    redirect: isDevServe ? '/tabs/errors' : '/login',
+    redirect: '/login',
   },
   {
     path: '/login',
@@ -67,13 +65,6 @@ const router = createRouter({
 });
 
 router.beforeEach((to) => {
-  if (isDevServe) {
-    if (to.path === '/login') {
-      return '/tabs/errors';
-    }
-    return true;
-  }
-
   const token = localStorage.getItem('accessToken');
   const isPublic = to.path === '/login';
 
