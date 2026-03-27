@@ -60,18 +60,36 @@ async function handleCreateClick() {
 
 <style scoped>
 .main-tabbar {
-  --background: rgba(255, 255, 255, 0.72);
-  backdrop-filter: saturate(180%) blur(24px);
-  border-top: 1px solid rgba(18, 34, 56, 0.1);
-  box-shadow: 0 -8px 28px rgba(18, 34, 56, 0.08);
+  --background: rgba(255, 255, 255, 0.5);
+  backdrop-filter: saturate(185%) blur(28px);
+  border-top: 1px solid rgba(255, 255, 255, 0.56);
+  box-shadow:
+    0 -8px 30px rgba(18, 34, 56, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6);
   min-height: 66px;
   padding-top: 2px;
   padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 2px);
+  overflow: visible;
+}
+
+.main-tabbar ion-tab-button {
+  --color: rgba(20, 32, 51, 0.7);
+  --color-selected: var(--ion-color-primary);
+  border-radius: 16px;
+  margin: 3px 4px 1px;
+  transition: transform 0.2s ease, background-color 0.2s ease;
+}
+
+.main-tabbar ion-tab-button.tab-selected:not(.create-tab) {
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.7), rgba(219, 236, 255, 0.55));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.65),
+    0 8px 20px rgba(31, 122, 255, 0.12);
 }
 
 .create-tab {
-  --color-selected: var(--ion-color-primary);
-  transform: none;
+  --color-selected: #ffffff;
+  margin-top: -8px;
 }
 
 .create-tab ion-icon {
@@ -90,5 +108,16 @@ async function handleCreateClick() {
 .create-tab ion-label {
   font-weight: 700;
   letter-spacing: 0.2px;
+}
+
+.main-tabbar::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.46), rgba(255, 255, 255, 0.08)),
+    radial-gradient(circle at 50% -60%, rgba(134, 193, 255, 0.3), rgba(134, 193, 255, 0) 62%);
+  pointer-events: none;
+  border-top: 1px solid rgba(255, 255, 255, 0.62);
 }
 </style>
