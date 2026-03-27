@@ -6,39 +6,41 @@
       </ion-toolbar>
     </ion-header>
     <ion-content class="ion-padding">
-      <ion-item>
-        <ion-label position="stacked">标题</ion-label>
-        <ion-input v-model="title" />
-      </ion-item>
-      <ion-item>
-        <ion-label position="stacked">学科</ion-label>
-        <ion-input v-model="subject" placeholder="例如：math" />
-      </ion-item>
-      <ion-item>
-        <ion-label position="stacked">LaTeX</ion-label>
-        <ion-textarea v-model="latexSource" :rows="8" placeholder="输入大模型视觉识别得到的 LaTeX" />
-      </ion-item>
-      <ion-item>
-        <ion-label position="stacked">LaTeX 答案</ion-label>
-        <ion-textarea v-model="latexAnswer" :rows="4" placeholder="自动识别后的答案，可手动修正" />
-      </ion-item>
-      <ion-item>
-        <ion-label position="stacked">题目标签（逗号分隔）</ion-label>
-        <ion-input v-model="questionTags" placeholder="例如：函数, 二次方程" />
-      </ion-item>
-      <ion-item>
-        <ion-label position="stacked">错因</ion-label>
-        <ion-textarea v-model="mistakeReason" :rows="3" />
-      </ion-item>
-      <ion-button class="ion-margin-top" expand="block" :disabled="!latexSource.trim()" @click="save">保存到本地</ion-button>
+      <ion-card v-if="hasDraft">
+        <ion-card-header>
+          <ion-card-subtitle>{{ subject || 'unknown' }}</ion-card-subtitle>
+          <ion-card-title>{{ title || '识别题目' }}</ion-card-title>
+        </ion-card-header>
+        <ion-card-content>
+          <h4>题目（LaTeX）</h4>
+          <pre class="latex-block">{{ latexSource }}</pre>
+
+          <h4>答案（LaTeX）</h4>
+          <pre class="latex-block">{{ latexAnswer || '暂无' }}</pre>
+
+          <h4>题目标签</h4>
+          <div class="tag-wrap">
+            <ion-chip v-for="tag in tagList" :key="tag" color="primary" outline>{{ tag }}</ion-chip>
+            <ion-chip v-if="!tagList.length" color="medium" outline>未识别到标签</ion-chip>
+          </div>
+        </ion-card-content>
+      </ion-card>
+
+      <ion-card v-else>
+        <ion-card-content class="empty-tip">
+          未找到拍照识别结果，请从底部中间“新增”按钮发起拍照。
+        </ion-card-content>
+      </ion-card>
+
+      <ion-button class="ion-margin-top" expand="block" :disabled="!hasDraft" @click="save">保存到本地</ion-button>
     </ion-content>
   </ion-page>
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { IonButton, IonContent, IonHeader, IonInput, IonItem, IonLabel, IonPage, IonTextarea, IonTitle, IonToolbar } from '@ionic/vue';
+import { IonButton, IonCard, IonCardContent, IonCardHeader, IonCardSubtitle, IonCardTitle, IonChip, IonContent, IonHeader, IonPage, IonTitle, IonToolbar } from '@ionic/vue';
 import { useRecordStore } from '@/stores/record';
 import { clearVisionDraftStorage, loadVisionDraftFromStorage } from '@/services/ai';
 
@@ -49,8 +51,10 @@ const title = ref('');
 const subject = ref('math');
 const latexSource = ref('');
 const latexAnswer = ref('');
-const questionTags = ref('');
-const mistakeReason = ref('');
+const questionTags = ref<string[]>([]);
+
+const hasDraft = computed(() => latexSource.value.trim().length > 0);
+const tagList = computed(() => questionTags.value.filter((item) => item.trim().length > 0));
 
 onMounted(() => {
   const draft = loadVisionDraftFromStorage();
@@ -62,7 +66,7 @@ onMounted(() => {
   subject.value = draft.subject ?? subject.value;
   latexSource.value = draft.latexQuestion;
   latexAnswer.value = draft.latexAnswer;
-  questionTags.value = draft.tags.join(', ');
+  questionTags.value = draft.tags;
   clearVisionDraftStorage();
 });
 
@@ -77,10 +81,10 @@ function save() {
     title: title.value,
     latexSource: latexSource.value,
     latexAnswer: latexAnswer.value,
-    questionTags: questionTags.value.split(',').map((item) => item.trim()).filter(Boolean),
+    questionTags: tagList.value,
     latexVersion: 1,
     latexRenderStatus: 'pending',
-    mistakeReason: mistakeReason.value,
+    mistakeReason: '',
     masteryLevel: 0,
     reviewCount: 0,
     syncStatus: 'pending',
@@ -93,3 +97,33 @@ function save() {
   router.replace('/tabs/errors');
 }
 </script>
+
+<style scoped>
+h4 {
+  margin: 14px 0 8px;
+  font-size: 13px;
+  color: rgba(20, 32, 51, 0.72);
+}
+
+.latex-block {
+  margin: 0;
+  white-space: pre-wrap;
+  font-size: 13px;
+  line-height: 1.55;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.52);
+  border: 1px solid rgba(255, 255, 255, 0.48);
+}
+
+.tag-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.empty-tip {
+  text-align: center;
+  color: rgba(20, 32, 51, 0.76);
+}
+</style>

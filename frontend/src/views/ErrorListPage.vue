@@ -6,6 +6,13 @@
       </ion-toolbar>
     </ion-header>
     <ion-content class="ion-padding">
+      <ion-loading
+        :is-open="isGenerating"
+        message="正在拍照识别，请稍候..."
+        spinner="crescent"
+        backdrop-dismiss="false"
+      />
+
       <ion-card class="hero-card">
         <ion-card-header>
           <ion-card-subtitle>AI 错题本</ion-card-subtitle>
@@ -35,9 +42,9 @@
           </div>
           <h3>暂无错题</h3>
           <p>点击底部中间新增，拍照后由大模型自动生成 LaTeX 题目、答案与标签。</p>
-          <ion-button @click="createFromCamera">
+          <ion-button :class="{ 'cta-busy': isGenerating }" :disabled="isGenerating" @click="createFromCamera">
             <ion-icon slot="start" :icon="camera" />
-            立即拍照录题
+            {{ isGenerating ? '识别中...' : '立即拍照录题' }}
           </ion-button>
         </ion-card-content>
       </ion-card>
@@ -47,8 +54,9 @@
 
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
+import { ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { IonBadge, IonButton, IonCard, IonCardContent, IonCardHeader, IonCardSubtitle, IonCardTitle, IonContent, IonHeader, IonIcon, IonItem, IonLabel, IonList, IonPage, IonSearchbar, IonTitle, IonToolbar, toastController } from '@ionic/vue';
+import { IonBadge, IonButton, IonCard, IonCardContent, IonCardHeader, IonCardSubtitle, IonCardTitle, IonContent, IonHeader, IonIcon, IonItem, IonLabel, IonList, IonLoading, IonPage, IonSearchbar, IonTitle, IonToolbar, toastController } from '@ionic/vue';
 import { camera, sparkles } from 'ionicons/icons';
 import { useRecordStore } from '@/stores/record';
 import { capturePhotoAsBase64, generateLatexDraftByVision, saveVisionDraftToStorage } from '@/services/ai';
@@ -56,15 +64,26 @@ import { capturePhotoAsBase64, generateLatexDraftByVision, saveVisionDraftToStor
 const router = useRouter();
 const recordStore = useRecordStore();
 const { records } = storeToRefs(recordStore);
+const isGenerating = ref(false);
 
 function toDetail(id: number) {
   router.push(`/records/${id}`);
 }
 
 async function createFromCamera() {
+  if (isGenerating.value) {
+    return;
+  }
+
   try {
+    isGenerating.value = true;
     const imageBase64 = await capturePhotoAsBase64();
     const draft = await generateLatexDraftByVision(imageBase64);
+
+    if (!draft.latexQuestion.trim()) {
+      throw new Error('识别结果为空');
+    }
+
     saveVisionDraftToStorage(draft);
     router.push('/records/new');
   } catch {
@@ -75,6 +94,8 @@ async function createFromCamera() {
       position: 'top',
     });
     await toast.present();
+  } finally {
+    isGenerating.value = false;
   }
 }
 </script>
@@ -131,5 +152,21 @@ h3 {
   margin: 0;
   font-size: 20px;
   font-weight: 700;
+}
+
+.cta-busy {
+  animation: cta-breath 1.2s ease-in-out infinite;
+}
+
+@keyframes cta-breath {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.03);
+  }
+  100% {
+    transform: scale(1);
+  }
 }
 </style>

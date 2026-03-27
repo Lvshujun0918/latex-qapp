@@ -3,6 +3,13 @@
     <ion-tabs>
       <ion-router-outlet />
 
+      <ion-loading
+        :is-open="isGenerating"
+        message="正在识别题目、答案与标签..."
+        spinner="crescent"
+        backdrop-dismiss="false"
+      />
+
       <ion-tab-bar slot="bottom" class="main-tabbar">
         <ion-tab-button tab="errors" href="/tabs/errors">
           <ion-icon aria-hidden="true" :icon="book" />
@@ -14,7 +21,14 @@
           <ion-label>复习</ion-label>
         </ion-tab-button>
 
-        <ion-tab-button tab="create" href="/records/new" class="create-tab" @click.prevent="handleCreateClick">
+        <ion-tab-button
+          tab="create"
+          href="/records/new"
+          class="create-tab"
+          :class="{ 'is-generating': isGenerating }"
+          :disabled="isGenerating"
+          @click.prevent="handleCreateClick"
+        >
           <ion-icon aria-hidden="true" :icon="addCircle" />
         </ion-tab-button>
 
@@ -33,17 +47,29 @@
 </template>
 
 <script setup lang="ts">
+import { ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { IonTabBar, IonTabButton, IonTabs, IonLabel, IonIcon, IonPage, IonRouterOutlet, toastController } from '@ionic/vue';
+import { IonLoading, IonTabBar, IonTabButton, IonTabs, IonLabel, IonIcon, IonPage, IonRouterOutlet, toastController } from '@ionic/vue';
 import { addCircle, barChart, book, person, school } from 'ionicons/icons';
 import { capturePhotoAsBase64, generateLatexDraftByVision, saveVisionDraftToStorage } from '@/services/ai';
 
 const router = useRouter();
+const isGenerating = ref(false);
 
 async function handleCreateClick() {
+  if (isGenerating.value) {
+    return;
+  }
+
   try {
+    isGenerating.value = true;
     const imageBase64 = await capturePhotoAsBase64();
     const draft = await generateLatexDraftByVision(imageBase64);
+
+    if (!draft.latexQuestion.trim()) {
+      throw new Error('识别结果为空');
+    }
+
     saveVisionDraftToStorage(draft);
     router.push('/records/new');
   } catch {
@@ -54,6 +80,8 @@ async function handleCreateClick() {
       position: 'top',
     });
     await toast.present();
+  } finally {
+    isGenerating.value = false;
   }
 }
 </script>
@@ -92,6 +120,10 @@ async function handleCreateClick() {
   margin-top: -8px;
 }
 
+.create-tab.is-generating ion-icon {
+  animation: generating-pulse 1.1s ease-in-out infinite;
+}
+
 .create-tab ion-icon {
   font-size: 2.05rem;
   padding: 8px;
@@ -119,5 +151,28 @@ async function handleCreateClick() {
     radial-gradient(circle at 50% -60%, rgba(134, 193, 255, 0.3), rgba(134, 193, 255, 0) 62%);
   pointer-events: none;
   border-top: 1px solid rgba(255, 255, 255, 0.62);
+}
+
+@keyframes generating-pulse {
+  0% {
+    transform: scale(1);
+    box-shadow:
+      0 8px 20px rgba(31, 122, 255, 0.35),
+      inset 0 1px 0 rgba(255, 255, 255, 0.42);
+  }
+
+  50% {
+    transform: scale(1.08);
+    box-shadow:
+      0 12px 26px rgba(31, 122, 255, 0.5),
+      inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  }
+
+  100% {
+    transform: scale(1);
+    box-shadow:
+      0 8px 20px rgba(31, 122, 255, 0.35),
+      inset 0 1px 0 rgba(255, 255, 255, 0.42);
+  }
 }
 </style>
