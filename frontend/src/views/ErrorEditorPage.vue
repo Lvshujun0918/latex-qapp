@@ -1,6 +1,7 @@
 <template>
   <section class="app-page page-wrap">
     <header class="app-page-header page-header">
+      <span class="app-kicker">Draft Studio</span>
       <h1>录入错题</h1>
       <p>核对识别结果并补全答案、步骤和标签。</p>
     </header>
@@ -10,7 +11,7 @@
       <AlertDescription>{{ errorMessage }}</AlertDescription>
     </Alert>
 
-    <Card v-if="hasDraft">
+    <Card v-if="hasDraft" class="app-page-shell">
       <CardHeader>
         <CardDescription>{{ subject || 'unknown' }} · {{ questionTypeLabel }}</CardDescription>
         <CardTitle>{{ title || '识别题目' }}</CardTitle>
@@ -47,7 +48,7 @@
       </CardContent>
     </Card>
 
-    <Card v-else>
+    <Card v-else class="app-soft-card">
       <CardContent class="empty-tip">未找到拍照识别结果，请从底部中间“新增”按钮发起拍照。</CardContent>
     </Card>
 

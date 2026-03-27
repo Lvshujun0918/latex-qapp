@@ -1,5 +1,5 @@
 <template>
-  <div class="tabs-layout">
+  <div class="tabs-layout" :class="{ 'is-dark': resolvedTheme === 'dark' }">
     <section v-if="errorMessage" class="app-page error-wrap">
       <Alert variant="destructive">
         <AlertTitle>拍照生成功能异常</AlertTitle>
@@ -63,11 +63,13 @@ import { ref } from 'vue';
 import { useRoute, useRouter, RouterLink, RouterView } from 'vue-router';
 import { BarChart3, BookOpen, CircleUserRound, GraduationCap, PlusCircle } from 'lucide-vue-next';
 import ImageSourceDialog from '@/components/ImageSourceDialog.vue';
+import { useTheme } from '@/composables/useTheme';
 import { generateLatexDraftByVisionStream, pickImageAsBase64, saveVisionDraftToStorage } from '@/services/ai';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 const route = useRoute();
 const router = useRouter();
+const { resolvedTheme } = useTheme();
 const isGenerating = ref(false);
 const generatingMessage = ref('正在识别题目与标签...');
 const sourceDialogOpen = ref(false);
@@ -141,6 +143,14 @@ async function handleCreateClick(source: 'camera' | 'album' | 'file') {
     hsl(var(--background));
 }
 
+.tabs-layout.is-dark {
+  background:
+    radial-gradient(circle at 16% -8%, rgba(56, 189, 248, 0.18), transparent 40%),
+    radial-gradient(circle at 95% 4%, rgba(16, 185, 129, 0.16), transparent 34%),
+    radial-gradient(circle at 50% 100%, rgba(15, 23, 42, 0.5), transparent 48%),
+    hsl(var(--background));
+}
+
 .tabs-content {
   padding: 16px 16px calc(88px + env(safe-area-inset-bottom, 0px));
 }
@@ -172,6 +182,14 @@ async function handleCreateClick(source: 'camera' | 'album' | 'file') {
   padding: 0 8px;
 }
 
+.tabs-layout.is-dark .main-tabbar {
+  border: 1px solid rgba(148, 163, 184, 0.26);
+  background: rgba(15, 23, 42, 0.72);
+  box-shadow:
+    0 -8px 26px rgba(2, 6, 23, 0.44),
+    inset 0 1px 0 rgba(148, 163, 184, 0.12);
+}
+
 .tab-link {
   height: 56px;
   border-radius: 14px;
@@ -190,6 +208,15 @@ async function handleCreateClick(source: 'camera' | 'album' | 'file') {
 .tab-link.active {
   color: hsl(var(--primary));
   background: linear-gradient(160deg, rgba(255, 255, 255, 0.7), rgba(219, 236, 255, 0.55));
+}
+
+.tabs-layout.is-dark .tab-link {
+  color: rgba(203, 213, 225, 0.9);
+}
+
+.tabs-layout.is-dark .tab-link.active {
+  color: #dbeafe;
+  background: linear-gradient(160deg, rgba(30, 41, 59, 0.8), rgba(37, 99, 235, 0.22));
 }
 
 .tab-icon {
@@ -247,10 +274,20 @@ async function handleCreateClick(source: 'camera' | 'album' | 'file') {
   box-shadow: 0 12px 30px rgba(15, 23, 42, 0.2);
 }
 
+.tabs-layout.is-dark .loading-card {
+  background: rgba(15, 23, 42, 0.9);
+  border: 1px solid rgba(148, 163, 184, 0.32);
+  box-shadow: 0 12px 32px rgba(2, 6, 23, 0.5);
+}
+
 .loading-card p {
   margin: 10px 0 0;
   font-size: 13px;
   color: #334155;
+}
+
+.tabs-layout.is-dark .loading-card p {
+  color: #cbd5e1;
 }
 
 .loader {

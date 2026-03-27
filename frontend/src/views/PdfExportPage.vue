@@ -1,11 +1,12 @@
 <template>
-  <section class="page-wrap">
-    <header class="page-header">
+  <section class="app-page page-wrap">
+    <header class="app-page-header page-header">
+      <span class="app-kicker">Export Center</span>
       <h1>导出错题本 PDF</h1>
       <p>按学科与难度创建导出任务。</p>
     </header>
 
-    <Card>
+    <Card class="app-page-shell">
       <CardContent class="form-wrap">
         <div class="field">
           <Label for="subject">学科</Label>
@@ -42,22 +43,7 @@ function submit() {
 
 <style scoped>
 .page-wrap {
-  max-width: 960px;
-  margin: 0 auto;
-  display: grid;
   gap: 14px;
-}
-
-.page-header h1 {
-  margin: 0;
-  font-size: 24px;
-  font-weight: 700;
-}
-
-.page-header p {
-  margin: 4px 0 0;
-  color: #64748b;
-  font-size: 14px;
 }
 
 .form-wrap {

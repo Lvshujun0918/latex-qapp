@@ -1,6 +1,7 @@
 <template>
-  <section class="app-page page-wrap">
+  <section class="app-page page-wrap" :class="{ 'is-dark': resolvedTheme === 'dark' }">
     <header class="app-page-header page-header">
+      <span class="app-kicker">Collection</span>
       <h1>错题</h1>
       <p>记录、检索并持续迭代你的 LaTeX 错题集。</p>
     </header>
@@ -10,7 +11,7 @@
       <AlertDescription>{{ errorMessage }}</AlertDescription>
     </Alert>
 
-    <Card class="hero-card">
+    <Card class="hero-card app-page-shell">
       <CardHeader>
         <CardDescription>AI 错题本</CardDescription>
         <CardTitle>今天继续攻克薄弱点</CardTitle>
@@ -36,7 +37,7 @@
       <button
         v-for="record in filteredRecords"
         :key="record.id"
-        class="record-item"
+        class="record-item app-interactive-surface"
         type="button"
         @click="toDetail(record.id)"
       >
@@ -76,6 +77,7 @@ import { computed, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { Camera, Sparkles } from 'lucide-vue-next';
 import ImageSourceDialog from '@/components/ImageSourceDialog.vue';
+import { useTheme } from '@/composables/useTheme';
 import { useRecordStore } from '@/stores/record';
 import { generateLatexDraftByVisionStream, pickImageAsBase64, saveVisionDraftToStorage } from '@/services/ai';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -86,6 +88,7 @@ import { Input } from '@/components/ui/input';
 
 const router = useRouter();
 const recordStore = useRecordStore();
+const { resolvedTheme } = useTheme();
 const { records } = storeToRefs(recordStore);
 const keyword = ref('');
 const isGenerating = ref(false);
@@ -207,6 +210,17 @@ async function createFromCamera(source: 'camera' | 'album' | 'file') {
   align-items: center;
   text-align: left;
   cursor: pointer;
+  transition: transform 0.2s ease, border-color 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.record-item:hover {
+  border-color: rgba(59, 130, 246, 0.4);
+  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.08);
+}
+
+.record-item:focus-visible {
+  outline: 0;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.26);
 }
 
 .record-item h3 {
@@ -257,6 +271,15 @@ async function createFromCamera(source: 'camera' | 'album' | 'file') {
 .empty-content p {
   margin: 0;
   color: #475569;
+}
+
+.is-dark .record-item {
+  border-color: rgba(148, 163, 184, 0.24);
+  background: rgba(30, 41, 59, 0.56);
+}
+
+.is-dark .record-item p {
+  color: #cbd5e1;
 }
 
 @media (max-width: 640px) {

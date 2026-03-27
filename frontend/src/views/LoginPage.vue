@@ -2,6 +2,7 @@
   <section class="auth-page">
     <div class="auth-card">
       <div class="auth-head">
+        <span class="auth-kicker">Latex QApp</span>
         <h1>{{ isRegisterMode ? '注册账号' : '欢迎回来' }}</h1>
         <p>{{ isRegisterMode ? '创建账号后即可同步与导出错题。' : '登录后继续你的 AI 错题本。' }}</p>
       </div>
@@ -92,20 +93,38 @@ function toggleMode() {
   place-items: center;
   padding: 24px;
   background:
-    radial-gradient(circle at 20% 15%, rgba(56, 189, 248, 0.24), transparent 38%),
-    radial-gradient(circle at 85% 15%, rgba(99, 102, 241, 0.2), transparent 42%),
-    linear-gradient(160deg, #f8fafc 0%, #eef2ff 100%);
+    radial-gradient(circle at 10% 10%, rgba(16, 185, 129, 0.24), transparent 38%),
+    radial-gradient(circle at 88% 12%, rgba(59, 130, 246, 0.22), transparent 42%),
+    radial-gradient(circle at 50% 100%, rgba(236, 72, 153, 0.12), transparent 48%),
+    linear-gradient(160deg, #f8fafc 0%, #edf5ff 52%, #f0fdfa 100%);
 }
 
 .auth-card {
   width: 100%;
   max-width: 420px;
-  background: rgba(255, 255, 255, 0.88);
-  border: 1px solid rgba(148, 163, 184, 0.3);
-  border-radius: 16px;
-  box-shadow: 0 20px 45px rgba(15, 23, 42, 0.12);
-  backdrop-filter: blur(10px);
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(148, 163, 184, 0.36);
+  border-radius: 22px;
+  box-shadow:
+    0 24px 50px rgba(15, 23, 42, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(14px);
   padding: 24px;
+  animation: auth-rise 380ms ease-out both;
+}
+
+.auth-kicker {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  background: rgba(16, 185, 129, 0.12);
+  color: #047857;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
 }
 
 .auth-head h1 {
@@ -171,7 +190,7 @@ function toggleMode() {
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, #4f46e5 0%, #2563eb 100%);
+  background: linear-gradient(140deg, #0ea5e9 0%, #2563eb 55%, #0f766e 100%);
   color: #fff;
 }
 
@@ -185,5 +204,17 @@ function toggleMode() {
   margin: 0;
   color: #dc2626;
   font-size: 13px;
+}
+
+@keyframes auth-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 </style>

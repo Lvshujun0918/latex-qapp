@@ -1,11 +1,12 @@
 <template>
-  <section class="page-wrap">
-    <header class="page-header">
+  <section class="app-page page-wrap">
+    <header class="app-page-header page-header">
+      <span class="app-kicker">Task Status</span>
       <h1>PDF 任务</h1>
       <p>查看任务状态与进度。</p>
     </header>
 
-    <Card>
+    <Card class="app-page-shell">
       <CardHeader>
         <CardTitle>任务号：{{ route.params.jobId }}</CardTitle>
       </CardHeader>
@@ -27,22 +28,7 @@ const route = useRoute();
 
 <style scoped>
 .page-wrap {
-  max-width: 960px;
-  margin: 0 auto;
-  display: grid;
   gap: 14px;
-}
-
-.page-header h1 {
-  margin: 0;
-  font-size: 24px;
-  font-weight: 700;
-}
-
-.page-header p {
-  margin: 4px 0 0;
-  color: #64748b;
-  font-size: 14px;
 }
 
 .job-content {
