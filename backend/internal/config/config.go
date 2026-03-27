@@ -25,7 +25,7 @@ func Load() Config {
 		QwenBaseURL:     getenv("QWEN_BASE_URL", "https://dashscope.aliyuncs.com/compatible-mode/v1"),
 		QwenVisionModel: getenv("QWEN_VISION_MODEL", "qwen-vl-max-latest"),
 		QwenTextModel:   getenv("QWEN_TEXT_MODEL", "qwen-plus"),
-		AllowOrigin:     getenv("ALLOW_ORIGIN", "http://localhost:8100"),
+		AllowOrigin:     getenv("ALLOW_ORIGIN", "*"),
 	}
 }
 
