@@ -17,6 +17,7 @@ func TestAIService_GenerateLatexDraft_FromLocalImage_Integration(t *testing.T) {
 	if apiKey == "" {
 		t.Skip("skip integration test: QWEN_API_KEY is empty")
 	}
+	t.Log("api key loaded, length=", len(apiKey))
 
 	imagePath := strings.TrimSpace(os.Getenv("AI_TEST_IMAGE_PATH"))
 	if imagePath == "" {
@@ -30,6 +31,7 @@ func TestAIService_GenerateLatexDraft_FromLocalImage_Integration(t *testing.T) {
 	if len(data) == 0 {
 		t.Fatal("image file is empty")
 	}
+	t.Log("image file ready, path=", imagePath)
 
 	baseURL := getEnvOrDefault("QWEN_BASE_URL", "https://dashscope.aliyuncs.com/compatible-mode/v1")
 	visionModel := getEnvOrDefault("QWEN_VISION_MODEL", "qwen-vl-max-latest")
@@ -54,6 +56,9 @@ func TestAIService_GenerateLatexDraft_FromLocalImage_Integration(t *testing.T) {
 
 	t.Logf("subject=%s questionType=%s title=%s", result.Subject, result.QuestionType, result.Title)
 	t.Logf("tags=%v", result.Tags)
+	t.Logf("question=%v", result.LatexQuestion)
+	t.Logf("answer=%v", result.LatexAnswer)
+	t.Logf("sulution=%v", result.LatexSolution)
 	t.Logf("agentTrace=%v", result.AgentTrace)
 }
 
