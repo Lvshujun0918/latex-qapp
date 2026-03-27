@@ -70,6 +70,14 @@ type VisionRunOptions struct {
 	IncludeSolution bool
 }
 
+type SolveStreamEvent struct {
+	Stage         string `json:"stage"`
+	LatexAnswer   string `json:"latex_answer,omitempty"`
+	LatexSolution string `json:"latex_solution,omitempty"`
+	Done          bool   `json:"done,omitempty"`
+	Error         string `json:"error,omitempty"`
+}
+
 type classifyResult struct {
 	Subject      string `json:"subject"`
 	QuestionType string `json:"question_type"`
@@ -295,6 +303,42 @@ func (s *AIService) GenerateSolutionByLatex(ctx context.Context, subject string,
 	}
 
 	return s.solveByLatex(ctx, meta, &latexResult{LatexQuestion: latexQuestion})
+}
+
+func (s *AIService) GenerateSolutionByLatexStream(
+	ctx context.Context,
+	subject string,
+	questionType string,
+	latexQuestion string,
+	emit func(*SolveStreamEvent) error,
+) (*solveResult, error) {
+	emitEvent := func(evt *SolveStreamEvent) error {
+		if emit == nil {
+			return nil
+		}
+		return emit(evt)
+	}
+
+	if err := emitEvent(&SolveStreamEvent{Stage: "solve_start"}); err != nil {
+		return nil, err
+	}
+
+	out, err := s.GenerateSolutionByLatex(ctx, subject, questionType, latexQuestion)
+	if err != nil {
+		_ = emitEvent(&SolveStreamEvent{Stage: "error", Error: err.Error(), Done: true})
+		return nil, err
+	}
+
+	if err := emitEvent(&SolveStreamEvent{
+		Stage:         "solve_final",
+		LatexAnswer:   out.LatexAnswer,
+		LatexSolution: out.LatexSolution,
+		Done:          true,
+	}); err != nil {
+		return nil, err
+	}
+
+	return out, nil
 }
 
 func (s *AIService) classifyImageMeta(ctx context.Context, imageBase64 string) (*classifyResult, error) {

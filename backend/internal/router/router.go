@@ -45,6 +45,7 @@ func New(
 			ai.POST("/vision/latex", aiHandler.VisionLatex)
 			ai.POST("/vision/latex/stream", aiHandler.VisionLatexStream)
 			ai.POST("/solve", aiHandler.SolveLatex)
+			ai.POST("/solve/stream", aiHandler.SolveLatexStream)
 		}
 
 		records := api.Group("/records", middleware.JWTAuth(cfg.JWTSecret))

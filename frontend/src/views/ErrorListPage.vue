@@ -56,10 +56,10 @@
 import { storeToRefs } from 'pinia';
 import { onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { IonBadge, IonButton, IonCard, IonCardContent, IonCardHeader, IonCardSubtitle, IonCardTitle, IonContent, IonHeader, IonIcon, IonItem, IonLabel, IonList, IonLoading, IonPage, IonSearchbar, IonTitle, IonToolbar, toastController } from '@ionic/vue';
+import { IonBadge, IonButton, IonCard, IonCardContent, IonCardHeader, IonCardSubtitle, IonCardTitle, IonContent, IonHeader, IonIcon, IonItem, IonLabel, IonList, IonLoading, IonPage, IonSearchbar, IonTitle, IonToolbar, actionSheetController, toastController } from '@ionic/vue';
 import { camera, sparkles } from 'ionicons/icons';
 import { useRecordStore } from '@/stores/record';
-import { capturePhotoAsBase64, generateLatexDraftByVisionStream, saveVisionDraftToStorage } from '@/services/ai';
+import { generateLatexDraftByVisionStream, pickImageAsBase64, saveVisionDraftToStorage } from '@/services/ai';
 
 const router = useRouter();
 const recordStore = useRecordStore();
@@ -82,8 +82,9 @@ async function createFromCamera() {
 
   try {
     isGenerating.value = true;
-    generatingMessage.value = '正在拍照...';
-    const imageBase64 = await capturePhotoAsBase64();
+    generatingMessage.value = '请选择图片来源...';
+    const source = await chooseImageSource();
+    const imageBase64 = await pickImageAsBase64(source);
     const draft = await generateLatexDraftByVisionStream(imageBase64, (evt) => {
       switch (evt.stage) {
         case 'classify':
@@ -121,6 +122,21 @@ async function createFromCamera() {
     isGenerating.value = false;
     generatingMessage.value = '正在识别题目与标签...';
   }
+}
+
+async function chooseImageSource(): Promise<'camera' | 'album' | 'file'> {
+  const sheet = await actionSheetController.create({
+    header: '选择图片来源',
+    buttons: [
+      { text: '拍照', data: { source: 'camera' } },
+      { text: '相册', data: { source: 'album' } },
+      { text: '文件', data: { source: 'file' } },
+      { text: '取消', role: 'cancel' },
+    ],
+  });
+  await sheet.present();
+  const result = await sheet.onDidDismiss();
+  return (result.data?.source as 'camera' | 'album' | 'file') || 'camera';
 }
 </script>
 

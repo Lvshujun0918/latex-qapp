@@ -103,3 +103,26 @@ func (h *AIHandler) SolveLatex(c *gin.Context) {
 
 	httputil.OK(c, result)
 }
+
+func (h *AIHandler) SolveLatexStream(c *gin.Context) {
+	var req SolveLatexRequest
+	if err := c.ShouldBindJSON(&req); err != nil || req.LatexQuestion == "" {
+		httputil.BadRequest(c, "latex_question required")
+		return
+	}
+
+	c.Header("Content-Type", "text/event-stream")
+	c.Header("Cache-Control", "no-cache")
+	c.Header("Connection", "keep-alive")
+	c.Header("X-Accel-Buffering", "no")
+
+	_, err := h.aiService.GenerateSolutionByLatexStream(c.Request.Context(), req.Subject, req.QuestionType, req.LatexQuestion, func(evt *service.SolveStreamEvent) error {
+		c.SSEvent("progress", evt)
+		c.Writer.Flush()
+		return nil
+	})
+	if err != nil {
+		c.SSEvent("progress", &service.SolveStreamEvent{Stage: "error", Error: err.Error(), Done: true})
+		c.Writer.Flush()
+	}
+}

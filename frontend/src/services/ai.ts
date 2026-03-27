@@ -1,5 +1,6 @@
 import { apiClient } from '@/services/api';
 import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
+import { Capacitor } from '@capacitor/core';
 import type { VisionLatexDraft, VisionStreamEvent } from '@/types/domain';
 
 const DRAFT_STORAGE_KEY = 'draft_record_from_camera';
@@ -18,9 +19,33 @@ export async function getAnalysis(recordId: number) {
 }
 
 export async function capturePhotoAsBase64(): Promise<string> {
+	if (!Capacitor.isNativePlatform()) {
+		return pickImageFromFileAsBase64(true);
+	}
+
   const photo = await Camera.getPhoto({
     quality: 85,
     source: CameraSource.Camera,
+    resultType: CameraResultType.Base64,
+    allowEditing: false,
+  });
+
+  if (!photo.base64String) {
+    throw new Error('未获取到照片数据');
+  }
+
+  return photo.base64String;
+}
+
+export async function pickImageAsBase64(source: 'camera' | 'album' | 'file' = 'camera'): Promise<string> {
+  if (!Capacitor.isNativePlatform()) {
+    return pickImageFromFileAsBase64(source === 'camera');
+  }
+
+  const nativeSource = source === 'camera' ? CameraSource.Camera : CameraSource.Photos;
+  const photo = await Camera.getPhoto({
+    quality: 85,
+    source: nativeSource,
     resultType: CameraResultType.Base64,
     allowEditing: false,
   });
@@ -141,6 +166,78 @@ export async function generateSolutionByLatex(payload: {
   };
 }
 
+export async function generateSolutionByLatexStream(
+  payload: { latexQuestion: string; questionType?: string; subject?: string },
+  onEvent: (evt: { stage: string; latex_answer?: string; latex_solution?: string; done?: boolean; error?: string }) => void,
+): Promise<{ latexAnswer: string; latexSolution: string }> {
+  const token = localStorage.getItem('accessToken') || '';
+  const url = `${apiClient.defaults.baseURL}/api/ai/solve/stream`;
+
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify({
+      latex_question: payload.latexQuestion,
+      question_type: payload.questionType ?? 'unknown',
+      subject: payload.subject ?? 'math',
+    }),
+  });
+
+  if (!res.ok || !res.body) {
+    throw new Error(`SSE request failed: ${res.status}`);
+  }
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder('utf-8');
+  let buffer = '';
+  let latexAnswer = '';
+  let latexSolution = '';
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) {
+      break;
+    }
+
+    buffer += decoder.decode(value, { stream: true });
+    const chunks = buffer.split('\n\n');
+    buffer = chunks.pop() || '';
+
+    for (const chunk of chunks) {
+      const dataLine = chunk
+        .split('\n')
+        .find((line) => line.startsWith('data:'));
+      if (!dataLine) {
+        continue;
+      }
+
+      const raw = dataLine.slice(5).trim();
+      if (!raw) {
+        continue;
+      }
+
+      const evt = JSON.parse(raw) as { stage: string; latex_answer?: string; latex_solution?: string; done?: boolean; error?: string };
+      onEvent(evt);
+
+      if (evt.error) {
+        throw new Error(evt.error);
+      }
+
+      if (evt.latex_answer) {
+        latexAnswer = evt.latex_answer;
+      }
+      if (evt.latex_solution) {
+        latexSolution = evt.latex_solution;
+      }
+    }
+  }
+
+  return { latexAnswer, latexSolution };
+}
+
 export function saveVisionDraftToStorage(draft: VisionLatexDraft) {
   localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draft));
 }
@@ -218,4 +315,45 @@ function mapTitleFromType(questionType: string): string {
     default:
       return '识别题目';
   }
+}
+
+function pickImageFromFileAsBase64(preferCamera: boolean): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    if (preferCamera) {
+      input.setAttribute('capture', 'environment');
+    }
+
+    input.onchange = async () => {
+      const file = input.files?.[0];
+      if (!file) {
+        reject(new Error('未选择图片'));
+        return;
+      }
+
+      try {
+        const data = await fileToBase64(file);
+        resolve(data);
+      } catch (error) {
+        reject(error);
+      }
+    };
+
+    input.click();
+  });
+}
+
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = String(reader.result || '');
+      const idx = result.indexOf(',');
+      resolve(idx >= 0 ? result.slice(idx + 1) : result);
+    };
+    reader.onerror = () => reject(new Error('读取文件失败'));
+    reader.readAsDataURL(file);
+  });
 }

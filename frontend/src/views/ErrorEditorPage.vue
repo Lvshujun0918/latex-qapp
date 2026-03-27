@@ -24,7 +24,7 @@
           <div class="solve-header">
             <h4>答案与解答</h4>
             <ion-button size="small" fill="outline" :disabled="isSolving" @click="generateSolve">
-              {{ isSolving ? '生成中...' : '生成解答' }}
+              {{ isSolving ? solvingStage || '生成中...' : '生成解答' }}
             </ion-button>
           </div>
 
@@ -58,7 +58,7 @@ import { computed, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { IonButton, IonCard, IonCardContent, IonCardHeader, IonCardSubtitle, IonCardTitle, IonChip, IonContent, IonHeader, IonItem, IonLabel, IonPage, IonTextarea, IonTitle, IonToolbar, toastController } from '@ionic/vue';
 import { useRecordStore } from '@/stores/record';
-import { clearVisionDraftStorage, generateSolutionByLatex, loadVisionDraftFromStorage } from '@/services/ai';
+import { clearVisionDraftStorage, generateSolutionByLatexStream, loadVisionDraftFromStorage } from '@/services/ai';
 import LatexView from '@/components/LatexView.vue';
 
 const router = useRouter();
@@ -72,6 +72,7 @@ const latexAnswer = ref('');
 const latexSolution = ref('');
 const questionTags = ref<string[]>([]);
 const isSolving = ref(false);
+const solvingStage = ref('');
 
 const hasDraft = computed(() => latexSource.value.trim().length > 0);
 const tagList = computed(() => questionTags.value.filter((item) => item.trim().length > 0));
@@ -100,10 +101,18 @@ async function generateSolve() {
 
   try {
     isSolving.value = true;
-    const solved = await generateSolutionByLatex({
+    solvingStage.value = '准备解答...';
+    const solved = await generateSolutionByLatexStream({
       latexQuestion: latexSource.value,
       questionType: questionType.value,
       subject: subject.value,
+    }, (evt) => {
+      if (evt.stage === 'solve_start') {
+        solvingStage.value = '正在推理...';
+      }
+      if (evt.stage === 'solve_final') {
+        solvingStage.value = '解答完成';
+      }
     });
 
     latexAnswer.value = solved.latexAnswer || latexAnswer.value;
@@ -118,6 +127,7 @@ async function generateSolve() {
     await toast.present();
   } finally {
     isSolving.value = false;
+    solvingStage.value = '';
   }
 }
 

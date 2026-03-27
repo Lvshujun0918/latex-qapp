@@ -49,9 +49,9 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { IonLoading, IonTabBar, IonTabButton, IonTabs, IonLabel, IonIcon, IonPage, IonRouterOutlet, toastController } from '@ionic/vue';
+import { IonLoading, IonTabBar, IonTabButton, IonTabs, IonLabel, IonIcon, IonPage, IonRouterOutlet, actionSheetController, toastController } from '@ionic/vue';
 import { addCircle, barChart, book, person, school } from 'ionicons/icons';
-import { capturePhotoAsBase64, generateLatexDraftByVisionStream, saveVisionDraftToStorage } from '@/services/ai';
+import { generateLatexDraftByVisionStream, pickImageAsBase64, saveVisionDraftToStorage } from '@/services/ai';
 
 const router = useRouter();
 const isGenerating = ref(false);
@@ -64,8 +64,9 @@ async function handleCreateClick() {
 
   try {
     isGenerating.value = true;
-    generatingMessage.value = '正在拍照...';
-    const imageBase64 = await capturePhotoAsBase64();
+    generatingMessage.value = '请选择图片来源...';
+    const source = await chooseImageSource();
+    const imageBase64 = await pickImageAsBase64(source);
     const draft = await generateLatexDraftByVisionStream(imageBase64, (evt) => {
       switch (evt.stage) {
         case 'classify':
@@ -103,6 +104,21 @@ async function handleCreateClick() {
     isGenerating.value = false;
     generatingMessage.value = '正在识别题目与标签...';
   }
+}
+
+async function chooseImageSource(): Promise<'camera' | 'album' | 'file'> {
+  const sheet = await actionSheetController.create({
+    header: '选择图片来源',
+    buttons: [
+      { text: '拍照', data: { source: 'camera' } },
+      { text: '相册', data: { source: 'album' } },
+      { text: '文件', data: { source: 'file' } },
+      { text: '取消', role: 'cancel' },
+    ],
+  });
+  await sheet.present();
+  const result = await sheet.onDidDismiss();
+  return (result.data?.source as 'camera' | 'album' | 'file') || 'camera';
 }
 </script>
 
