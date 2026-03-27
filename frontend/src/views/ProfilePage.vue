@@ -6,22 +6,33 @@
       </ion-toolbar>
     </ion-header>
     <ion-content class="ion-padding">
-      <ion-item>
-        <ion-label>
-          <h2>{{ authStore.username || '未登录' }}</h2>
-          <p>待同步：{{ recordStore.pendingCount }} 条</p>
-        </ion-label>
-      </ion-item>
-      <ion-button expand="block" class="ion-margin-top" @click="toSync">手动同步</ion-button>
-      <ion-button expand="block" fill="outline" class="ion-margin-top" @click="toPdf">导出错题本 PDF</ion-button>
-      <ion-button expand="block" color="danger" fill="clear" class="ion-margin-top" @click="logout">退出登录</ion-button>
+      <ion-card>
+        <ion-card-header>
+          <ion-card-subtitle>账号</ion-card-subtitle>
+          <ion-card-title>{{ authStore.username || '未登录' }}</ion-card-title>
+        </ion-card-header>
+        <ion-card-content>
+          待同步：{{ recordStore.pendingCount }} 条
+        </ion-card-content>
+      </ion-card>
+
+      <ion-list inset>
+        <ion-item button detail @click="toSync">
+          <ion-label>手动同步</ion-label>
+        </ion-item>
+        <ion-item button detail @click="toPdf">
+          <ion-label>导出错题本 PDF</ion-label>
+        </ion-item>
+      </ion-list>
+
+      <ion-button expand="block" color="danger" fill="outline" class="ion-margin-top" @click="logout">退出登录</ion-button>
     </ion-content>
   </ion-page>
 </template>
 
 <script setup lang="ts">
 import { useRouter } from 'vue-router';
-import { IonButton, IonContent, IonHeader, IonItem, IonLabel, IonPage, IonTitle, IonToolbar } from '@ionic/vue';
+import { IonButton, IonCard, IonCardContent, IonCardHeader, IonCardSubtitle, IonCardTitle, IonContent, IonHeader, IonItem, IonLabel, IonList, IonPage, IonTitle, IonToolbar } from '@ionic/vue';
 import { useAuthStore } from '@/stores/auth';
 import { useRecordStore } from '@/stores/record';
 import { syncNow } from '@/services/sync';

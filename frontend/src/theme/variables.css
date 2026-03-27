@@ -1,2 +1,80 @@
-/* For information on how to create your own theme, please refer to:
-http://ionicframework.com/docs/theming/ */
+/* Global theme tokens and component polish for iOS-like visual style. */
+
+:root {
+	--ion-font-family: "SF Pro Text", "PingFang SC", "Helvetica Neue", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+
+	--ion-color-primary: #1f7aff;
+	--ion-color-primary-rgb: 31, 122, 255;
+	--ion-color-primary-contrast: #ffffff;
+	--ion-color-primary-contrast-rgb: 255, 255, 255;
+	--ion-color-primary-shade: #1b6be0;
+	--ion-color-primary-tint: #3688ff;
+
+	--ion-color-secondary: #17b26a;
+	--ion-color-secondary-rgb: 23, 178, 106;
+	--ion-color-secondary-contrast: #ffffff;
+	--ion-color-secondary-contrast-rgb: 255, 255, 255;
+	--ion-color-secondary-shade: #149d5d;
+	--ion-color-secondary-tint: #2ebe79;
+
+	--ion-color-tertiary: #ff8a00;
+	--ion-color-tertiary-rgb: 255, 138, 0;
+	--ion-color-tertiary-contrast: #111111;
+	--ion-color-tertiary-contrast-rgb: 17, 17, 17;
+	--ion-color-tertiary-shade: #e07900;
+	--ion-color-tertiary-tint: #ff961a;
+
+	--ion-background-color: #f4f7fb;
+	--ion-background-color-rgb: 244, 247, 251;
+	--ion-text-color: #142033;
+	--ion-text-color-rgb: 20, 32, 51;
+
+	--app-surface: rgba(255, 255, 255, 0.88);
+	--app-border: rgba(20, 32, 51, 0.08);
+	--app-shadow: 0 8px 28px rgba(12, 24, 42, 0.08);
+	--app-header-bg: linear-gradient(135deg, #ffffff 0%, #eef5ff 65%, #e8fff5 100%);
+}
+
+ion-content {
+	--background:
+		radial-gradient(circle at 20% -10%, rgba(64, 148, 255, 0.16), transparent 40%),
+		radial-gradient(circle at 100% 0%, rgba(43, 199, 135, 0.14), transparent 32%),
+		var(--ion-background-color);
+}
+
+ion-header ion-toolbar {
+	--background: var(--app-header-bg);
+	--border-color: transparent;
+}
+
+ion-title {
+	font-weight: 700;
+	letter-spacing: 0.2px;
+}
+
+ion-card {
+	--background: var(--app-surface);
+	border: 1px solid var(--app-border);
+	box-shadow: var(--app-shadow);
+	border-radius: 18px;
+}
+
+ion-item {
+	--background: rgba(255, 255, 255, 0.94);
+	--border-color: rgba(20, 32, 51, 0.08);
+	--inner-border-width: 0;
+	border: 1px solid rgba(20, 32, 51, 0.08);
+	border-radius: 14px;
+	margin-bottom: 10px;
+}
+
+ion-button {
+	--border-radius: 14px;
+	font-weight: 600;
+}
+
+ion-searchbar {
+	--background: rgba(255, 255, 255, 0.94);
+	--box-shadow: 0 4px 18px rgba(31, 122, 255, 0.08);
+	--border-radius: 14px;
+}

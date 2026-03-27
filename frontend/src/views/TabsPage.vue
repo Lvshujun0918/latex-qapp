@@ -3,13 +3,7 @@
     <ion-tabs>
       <ion-router-outlet />
 
-      <ion-fab slot="fixed" vertical="bottom" horizontal="end">
-        <ion-fab-button @click="toEditor">
-          <ion-icon aria-hidden="true" :icon="add" />
-        </ion-fab-button>
-      </ion-fab>
-
-      <ion-tab-bar slot="bottom">
+      <ion-tab-bar slot="bottom" class="main-tabbar">
         <ion-tab-button tab="errors" href="/tabs/errors">
           <ion-icon aria-hidden="true" :icon="book" />
           <ion-label>错题</ion-label>
@@ -18,6 +12,11 @@
         <ion-tab-button tab="review" href="/tabs/review">
           <ion-icon aria-hidden="true" :icon="school" />
           <ion-label>复习</ion-label>
+        </ion-tab-button>
+
+        <ion-tab-button tab="create" href="/records/new" class="create-tab">
+          <ion-icon aria-hidden="true" :icon="addCircle" />
+          <ion-label>新增</ion-label>
         </ion-tab-button>
 
         <ion-tab-button tab="stats" href="/tabs/stats">
@@ -35,13 +34,22 @@
 </template>
 
 <script setup lang="ts">
-import { useRouter } from 'vue-router';
-import { IonFab, IonFabButton, IonTabBar, IonTabButton, IonTabs, IonLabel, IonIcon, IonPage, IonRouterOutlet } from '@ionic/vue';
-import { add, barChart, book, person, school } from 'ionicons/icons';
-
-const router = useRouter();
-
-function toEditor() {
-  router.push('/records/new');
-}
+import { IonTabBar, IonTabButton, IonTabs, IonLabel, IonIcon, IonPage, IonRouterOutlet } from '@ionic/vue';
+import { addCircle, barChart, book, person, school } from 'ionicons/icons';
 </script>
+
+<style scoped>
+.main-tabbar {
+  --background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: saturate(180%) blur(14px);
+  border-top: 1px solid rgba(18, 34, 56, 0.08);
+}
+
+.create-tab {
+  --color-selected: var(--ion-color-primary);
+}
+
+.create-tab ion-icon {
+  font-size: 1.8rem;
+}
+</style>
