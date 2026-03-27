@@ -66,7 +66,7 @@ func (s *AIService) GenerateLatexDraft(imageBase64 string) (*VisionResult, error
 
 	messages := []map[string]any{
 		{
-			"role": "system",
+			"role":    "system",
 			"content": "You are an exam image parser. Always follow user prompt exactly.",
 		},
 		{

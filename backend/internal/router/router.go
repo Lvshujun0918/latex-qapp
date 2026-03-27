@@ -9,7 +9,15 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func New(cfg config.Config, authHandler *handler.AuthHandler, recordHandler *handler.RecordHandler, aiHandler *handler.AIHandler) *gin.Engine {
+func New(
+	cfg config.Config,
+	authHandler *handler.AuthHandler,
+	recordHandler *handler.RecordHandler,
+	aiHandler *handler.AIHandler,
+	syncHandler *handler.SyncHandler,
+	statsHandler *handler.StatsHandler,
+	pdfHandler *handler.PDFHandler,
+) *gin.Engine {
 	r := gin.Default()
 
 	r.Use(cors.New(cors.Config{
@@ -45,6 +53,25 @@ func New(cfg config.Config, authHandler *handler.AuthHandler, recordHandler *han
 			records.GET(":id", recordHandler.Get)
 			records.PUT(":id", recordHandler.Update)
 			records.DELETE(":id", recordHandler.Delete)
+		}
+
+		sync := api.Group("/sync", middleware.JWTAuth(cfg.JWTSecret))
+		{
+			sync.POST("/push", syncHandler.Push)
+			sync.POST("/pull", syncHandler.Pull)
+		}
+
+		stats := api.Group("/stats", middleware.JWTAuth(cfg.JWTSecret))
+		{
+			stats.GET("/overview", statsHandler.Overview)
+			stats.GET("/by-category", statsHandler.ByCategory)
+			stats.GET("/trending", statsHandler.Trending)
+		}
+
+		pdf := api.Group("/pdf", middleware.JWTAuth(cfg.JWTSecret))
+		{
+			pdf.POST("/export", pdfHandler.Export)
+			pdf.GET("/jobs/:jobId", pdfHandler.JobDetail)
 		}
 	}
 

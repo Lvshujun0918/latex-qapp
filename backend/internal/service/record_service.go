@@ -14,14 +14,14 @@ type RecordService struct {
 }
 
 type CreateRecordInput struct {
-	Subject      string   `json:"subject"`
-	QuestionType string   `json:"question_type"`
-	Difficulty   int      `json:"difficulty"`
-	Title        string   `json:"title"`
-	LatexSource  string   `json:"latex_source"`
-	LatexAnswer  string   `json:"latex_answer"`
-	QuestionTags []string `json:"question_tags"`
-	MistakeReason string  `json:"mistake_reason"`
+	Subject       string   `json:"subject"`
+	QuestionType  string   `json:"question_type"`
+	Difficulty    int      `json:"difficulty"`
+	Title         string   `json:"title"`
+	LatexSource   string   `json:"latex_source"`
+	LatexAnswer   string   `json:"latex_answer"`
+	QuestionTags  []string `json:"question_tags"`
+	MistakeReason string   `json:"mistake_reason"`
 }
 
 func NewRecordService(db *gorm.DB) *RecordService {

@@ -6,14 +6,14 @@ import (
 )
 
 type Config struct {
-	Port           string
-	DatabaseDSN    string
-	JWTSecret      string
-	QwenAPIKey     string
-	QwenBaseURL    string
+	Port            string
+	DatabaseDSN     string
+	JWTSecret       string
+	QwenAPIKey      string
+	QwenBaseURL     string
 	QwenVisionModel string
-	QwenTextModel  string
-	AllowOrigin    string
+	QwenTextModel   string
+	AllowOrigin     string
 }
 
 func Load() Config {
