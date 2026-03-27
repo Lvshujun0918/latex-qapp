@@ -19,6 +19,14 @@
         <ion-textarea v-model="latexSource" :rows="8" placeholder="输入大模型视觉识别得到的 LaTeX" />
       </ion-item>
       <ion-item>
+        <ion-label position="stacked">LaTeX 答案</ion-label>
+        <ion-textarea v-model="latexAnswer" :rows="4" placeholder="自动识别后的答案，可手动修正" />
+      </ion-item>
+      <ion-item>
+        <ion-label position="stacked">题目标签（逗号分隔）</ion-label>
+        <ion-input v-model="questionTags" placeholder="例如：函数, 二次方程" />
+      </ion-item>
+      <ion-item>
         <ion-label position="stacked">错因</ion-label>
         <ion-textarea v-model="mistakeReason" :rows="3" />
       </ion-item>
@@ -28,10 +36,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { IonButton, IonContent, IonHeader, IonInput, IonItem, IonLabel, IonPage, IonTextarea, IonTitle, IonToolbar } from '@ionic/vue';
 import { useRecordStore } from '@/stores/record';
+import { clearVisionDraftStorage, loadVisionDraftFromStorage } from '@/services/ai';
 
 const router = useRouter();
 const recordStore = useRecordStore();
@@ -39,7 +48,23 @@ const recordStore = useRecordStore();
 const title = ref('');
 const subject = ref('math');
 const latexSource = ref('');
+const latexAnswer = ref('');
+const questionTags = ref('');
 const mistakeReason = ref('');
+
+onMounted(() => {
+  const draft = loadVisionDraftFromStorage();
+  if (!draft) {
+    return;
+  }
+
+  title.value = draft.title ?? title.value;
+  subject.value = draft.subject ?? subject.value;
+  latexSource.value = draft.latexQuestion;
+  latexAnswer.value = draft.latexAnswer;
+  questionTags.value = draft.tags.join(', ');
+  clearVisionDraftStorage();
+});
 
 function save() {
   const now = Date.now();
@@ -51,6 +76,8 @@ function save() {
     difficulty: 3,
     title: title.value,
     latexSource: latexSource.value,
+    latexAnswer: latexAnswer.value,
+    questionTags: questionTags.value.split(',').map((item) => item.trim()).filter(Boolean),
     latexVersion: 1,
     latexRenderStatus: 'pending',
     mistakeReason: mistakeReason.value,

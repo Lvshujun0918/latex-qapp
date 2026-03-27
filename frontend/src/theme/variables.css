@@ -48,8 +48,7 @@ ion-header ion-toolbar {
 }
 
 ion-title {
-	font-weight: 700;
-	letter-spacing: 0.2px;
+	display: none;
 }
 
 ion-card {

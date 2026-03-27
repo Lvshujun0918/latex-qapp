@@ -14,6 +14,8 @@ export interface ErrorRecord {
   difficulty: number;
   title?: string;
   latexSource: string;
+  latexAnswer?: string;
+  questionTags?: string[];
   latexVersion: number;
   latexRenderStatus: 'pending' | 'ok' | 'failed';
   mistakeReason?: string;
@@ -31,6 +33,14 @@ export interface AIAnalysisResult {
   keyPoints: string[];
   suggestions: string[];
   summary: string;
+}
+
+export interface VisionLatexDraft {
+  latexQuestion: string;
+  latexAnswer: string;
+  tags: string[];
+  subject?: string;
+  title?: string;
 }
 
 export interface PDFJob {
