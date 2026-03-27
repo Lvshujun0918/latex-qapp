@@ -3,18 +3,16 @@
     <template v-if="questions.length">
       <article
         v-for="(q, idx) in questions"
-        :key="`${idx}-${q.index || 'na'}`"
+        :key="`${idx}-${q.stem}`"
         class="question-card"
       >
         <header class="question-head">
-          <span class="question-no">{{ q.index || idx + 1 }}.</span>
           <div class="question-stem" v-html="renderRichText(q.stem)" />
         </header>
 
         <ol
           v-if="q.choices.length"
           class="question-choices"
-          :style="choiceGridStyle(q.choiceColumns)"
         >
           <li v-for="(choice, cIdx) in q.choices" :key="`${idx}-c-${cIdx}`">
             <span class="choice-label">{{ choiceLabel(cIdx) }}.</span>
@@ -39,10 +37,8 @@ import { computed } from 'vue';
 import katex from 'katex';
 
 type ParsedQuestion = {
-  index: string;
   stem: string;
   choices: string[];
-  choiceColumns: number;
   parts: string[];
 };
 
@@ -66,35 +62,19 @@ function parseExamQuestions(input: string): ParsedQuestion[] {
   while ((match = questionRe.exec(input)) !== null) {
     const options = (match[1] || '').trim();
     const body = (match[2] || '').trim();
-    const index = pickQuestionIndex(options, list.length + 1);
+    //const index = pickQuestionIndex(options, list.length + 1);
 
-    const { contentWithoutChoices, choices, choiceColumns } = extractChoices(body);
+    const { contentWithoutChoices, choices } = extractChoices(body);
     const { contentWithoutEnum, parts } = extractEnumerate(contentWithoutChoices);
 
     list.push({
-      index,
       stem: cleanupText(contentWithoutEnum),
       choices,
-      choiceColumns,
       parts,
     });
   }
 
   return list;
-}
-
-function pickQuestionIndex(options: string, fallback: number): string {
-  if (!options) {
-    return String(fallback);
-  }
-
-  const indexRe = /index\s*=\s*([^,\]]+)/;
-  const m = options.match(indexRe);
-  if (!m || !m[1]) {
-    return String(fallback);
-  }
-
-  return m[1].trim();
 }
 
 function extractChoices(body: string) {
@@ -119,16 +99,9 @@ function extractChoices(body: string) {
     choices.push(cleanupText(item[1] || ''));
   }
 
-  let columns = 1;
-  const colMatch = options.match(/columns\s*=\s*(\d+)/);
-  if (colMatch && colMatch[1]) {
-    columns = Math.max(1, Number(colMatch[1]) || 1);
-  }
-
   return {
     contentWithoutChoices: cleanupText(body.replace(m[0], '')),
-    choices,
-    choiceColumns: columns,
+    choices
   };
 }
 
@@ -298,7 +271,6 @@ function choiceGridStyle(columns: number) {
   line-height: 1.7;
 }
 
-:deep(.blank-pa),
 :deep(.blank-fillin) {
   display: inline-block;
   min-width: 4em;
