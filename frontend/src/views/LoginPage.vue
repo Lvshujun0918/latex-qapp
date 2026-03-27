@@ -1,41 +1,43 @@
 <template>
-  <ion-page>
-    <ion-header>
-      <ion-toolbar>
-        <ion-title>{{ isRegisterMode ? '注册账号' : '登录' }}</ion-title>
-      </ion-toolbar>
-    </ion-header>
-    <ion-content class="ion-padding">
-      <ion-item>
-        <ion-label position="stacked">用户名</ion-label>
-        <ion-input v-model="username" autocomplete="username" />
-      </ion-item>
-      <ion-item>
-        <ion-label position="stacked">密码</ion-label>
-        <ion-input v-model="password" type="password" autocomplete="current-password" />
-      </ion-item>
+  <section class="auth-page">
+    <div class="auth-card">
+      <div class="auth-head">
+        <h1>{{ isRegisterMode ? '注册账号' : '欢迎回来' }}</h1>
+        <p>{{ isRegisterMode ? '创建账号后即可同步与导出错题。' : '登录后继续你的 AI 错题本。' }}</p>
+      </div>
 
-      <ion-item v-if="isRegisterMode">
-        <ion-label position="stacked">确认密码</ion-label>
-        <ion-input v-model="confirmPassword" type="password" autocomplete="new-password" />
-      </ion-item>
+      <div class="auth-form">
+        <label class="field">
+          <span>用户名</span>
+          <input v-model="username" autocomplete="username" placeholder="请输入用户名" />
+        </label>
 
-      <ion-text v-if="errorMessage" color="danger" class="error-tip">{{ errorMessage }}</ion-text>
+        <label class="field">
+          <span>密码</span>
+          <input v-model="password" type="password" autocomplete="current-password" placeholder="至少 6 位密码" />
+        </label>
 
-      <ion-button class="ion-margin-top" expand="block" :disabled="!canSubmit || authStore.loading" @click="submit">
-        {{ isRegisterMode ? '注册并登录' : '登录' }}
-      </ion-button>
-      <ion-button fill="clear" expand="block" @click="toggleMode">
-        {{ isRegisterMode ? '已有账号？去登录' : '没有账号？去注册' }}
-      </ion-button>
-    </ion-content>
-  </ion-page>
+        <label v-if="isRegisterMode" class="field">
+          <span>确认密码</span>
+          <input v-model="confirmPassword" type="password" autocomplete="new-password" placeholder="再次输入密码" />
+        </label>
+
+        <p v-if="errorMessage" class="error-tip">{{ errorMessage }}</p>
+
+        <button class="btn btn-primary" :disabled="!canSubmit || authStore.loading" @click="submit">
+          {{ isRegisterMode ? '注册并登录' : '登录' }}
+        </button>
+        <button class="btn btn-ghost" @click="toggleMode">
+          {{ isRegisterMode ? '已有账号？去登录' : '没有账号？去注册' }}
+        </button>
+      </div>
+    </div>
+  </section>
 </template>
 
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { IonButton, IonContent, IonHeader, IonInput, IonItem, IonLabel, IonPage, IonText, IonTitle, IonToolbar } from '@ionic/vue';
 import { useAuthStore } from '@/stores/auth';
 
 const authStore = useAuthStore();
@@ -84,9 +86,104 @@ function toggleMode() {
 </script>
 
 <style scoped>
+.auth-page {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background:
+    radial-gradient(circle at 20% 15%, rgba(56, 189, 248, 0.24), transparent 38%),
+    radial-gradient(circle at 85% 15%, rgba(99, 102, 241, 0.2), transparent 42%),
+    linear-gradient(160deg, #f8fafc 0%, #eef2ff 100%);
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 420px;
+  background: rgba(255, 255, 255, 0.88);
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  border-radius: 16px;
+  box-shadow: 0 20px 45px rgba(15, 23, 42, 0.12);
+  backdrop-filter: blur(10px);
+  padding: 24px;
+}
+
+.auth-head h1 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: #0f172a;
+}
+
+.auth-head p {
+  margin: 10px 0 0;
+  color: #475569;
+  font-size: 14px;
+}
+
+.auth-form {
+  margin-top: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.field span {
+  font-size: 13px;
+  color: #334155;
+  font-weight: 600;
+}
+
+.field input {
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  height: 42px;
+  padding: 0 12px;
+  font-size: 14px;
+  background: #fff;
+}
+
+.field input:focus {
+  outline: none;
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.16);
+}
+
+.btn {
+  border: none;
+  border-radius: 10px;
+  height: 42px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #4f46e5 0%, #2563eb 100%);
+  color: #fff;
+}
+
+.btn-ghost {
+  background: transparent;
+  color: #334155;
+  border: 1px solid #cbd5e1;
+}
+
 .error-tip {
-  display: block;
-  margin-top: 10px;
-  padding-left: 4px;
+  margin: 0;
+  color: #dc2626;
+  font-size: 13px;
 }
 </style>

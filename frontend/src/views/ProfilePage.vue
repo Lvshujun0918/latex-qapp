@@ -1,53 +1,60 @@
 <template>
-  <ion-page>
-    <ion-header>
-      <ion-toolbar>
-        <ion-title>我的</ion-title>
-      </ion-toolbar>
-    </ion-header>
-    <ion-content class="ion-padding">
-      <ion-card>
-        <ion-card-header>
-          <ion-card-subtitle>账号</ion-card-subtitle>
-          <ion-card-title>{{ authStore.displayName || authStore.username || '未登录' }}</ion-card-title>
-        </ion-card-header>
-        <ion-card-content>
-          待同步：{{ recordStore.pendingCount }} 条
-        </ion-card-content>
-      </ion-card>
+  <section class="page-wrap">
+    <header class="page-header">
+      <h1>我的</h1>
+      <p>管理账号、同步任务与 PDF 导出。</p>
+    </header>
 
-      <ion-list inset>
-        <ion-item button detail @click="toSync">
-          <ion-label>手动同步</ion-label>
-        </ion-item>
-        <ion-item button detail @click="toPdf">
-          <ion-label>导出错题本 PDF</ion-label>
-        </ion-item>
-      </ion-list>
+    <Card>
+      <CardHeader>
+        <CardDescription>账号</CardDescription>
+        <CardTitle>{{ authStore.displayName || authStore.username || '未登录' }}</CardTitle>
+      </CardHeader>
+      <CardContent>待同步：{{ recordStore.pendingCount }} 条</CardContent>
+    </Card>
 
-      <ion-button expand="block" color="danger" fill="outline" class="ion-margin-top" @click="logout">退出登录</ion-button>
-    </ion-content>
-  </ion-page>
+    <div class="actions">
+      <Button variant="outline" :disabled="syncing" @click="toSync">
+        {{ syncing ? '同步中...' : '手动同步' }}
+      </Button>
+      <Button variant="outline" @click="toPdf">导出错题本 PDF</Button>
+    </div>
+
+    <Button variant="destructive" @click="logout">退出登录</Button>
+  </section>
 </template>
 
 <script setup lang="ts">
-import { onMounted } from 'vue';
+import { onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { IonButton, IonCard, IonCardContent, IonCardHeader, IonCardSubtitle, IonCardTitle, IonContent, IonHeader, IonItem, IonLabel, IonList, IonPage, IonTitle, IonToolbar } from '@ionic/vue';
 import { useAuthStore } from '@/stores/auth';
 import { useRecordStore } from '@/stores/record';
 import { syncNow } from '@/services/sync';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
 const authStore = useAuthStore();
 const recordStore = useRecordStore();
 const router = useRouter();
+const syncing = ref(false);
 
 onMounted(() => {
   recordStore.reload();
 });
 
 async function toSync() {
-  await syncNow();
+  if (syncing.value) {
+    return;
+  }
+
+  syncing.value = true;
+  try {
+    const result = await syncNow();
+    window.alert(result.message);
+    await recordStore.reload();
+  } finally {
+    syncing.value = false;
+  }
 }
 
 function toPdf() {
@@ -59,3 +66,29 @@ function logout() {
   router.replace('/login');
 }
 </script>
+
+<style scoped>
+.page-wrap {
+  max-width: 960px;
+  margin: 0 auto;
+  display: grid;
+  gap: 14px;
+}
+
+.page-header h1 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.page-header p {
+  margin: 4px 0 0;
+  color: #64748b;
+  font-size: 14px;
+}
+
+.actions {
+  display: grid;
+  gap: 10px;
+}
+</style>

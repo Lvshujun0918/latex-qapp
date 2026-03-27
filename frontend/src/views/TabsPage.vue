@@ -1,61 +1,64 @@
 <template>
-  <ion-page>
-    <ion-tabs>
-      <ion-router-outlet />
+  <div class="tabs-layout">
+    <main class="tabs-content">
+      <RouterView />
+    </main>
 
-      <ion-loading
-        :is-open="isGenerating"
-        :message="generatingMessage"
-        spinner="crescent"
-        backdrop-dismiss="false"
-      />
+    <nav class="main-tabbar" aria-label="主导航">
+      <RouterLink class="tab-link" :class="{ active: isActive('/tabs/errors') }" to="/tabs/errors">
+        <BookOpen class="tab-icon" />
+        <span>错题</span>
+      </RouterLink>
 
-      <ion-tab-bar slot="bottom" class="main-tabbar">
-        <ion-tab-button tab="errors" href="/tabs/errors">
-          <ion-icon aria-hidden="true" :icon="book" />
-          <ion-label>错题</ion-label>
-        </ion-tab-button>
+      <RouterLink class="tab-link" :class="{ active: isActive('/tabs/review') }" to="/tabs/review">
+        <GraduationCap class="tab-icon" />
+        <span>复习</span>
+      </RouterLink>
 
-        <ion-tab-button tab="review" href="/tabs/review">
-          <ion-icon aria-hidden="true" :icon="school" />
-          <ion-label>复习</ion-label>
-        </ion-tab-button>
+      <button
+        class="tab-create"
+        :class="{ 'is-generating': isGenerating }"
+        :disabled="isGenerating"
+        type="button"
+        @click="handleCreateClick"
+      >
+        <PlusCircle class="create-icon" />
+      </button>
 
-        <ion-tab-button
-          tab="create"
-          href="/records/new"
-          class="create-tab"
-          :class="{ 'is-generating': isGenerating }"
-          :disabled="isGenerating"
-          @click.prevent="handleCreateClick"
-        >
-          <ion-icon aria-hidden="true" :icon="addCircle" />
-        </ion-tab-button>
+      <RouterLink class="tab-link" :class="{ active: isActive('/tabs/stats') }" to="/tabs/stats">
+        <BarChart3 class="tab-icon" />
+        <span>统计</span>
+      </RouterLink>
 
-        <ion-tab-button tab="stats" href="/tabs/stats">
-          <ion-icon aria-hidden="true" :icon="barChart" />
-          <ion-label>统计</ion-label>
-        </ion-tab-button>
+      <RouterLink class="tab-link" :class="{ active: isActive('/tabs/profile') }" to="/tabs/profile">
+        <CircleUserRound class="tab-icon" />
+        <span>我的</span>
+      </RouterLink>
+    </nav>
 
-        <ion-tab-button tab="profile" href="/tabs/profile">
-          <ion-icon aria-hidden="true" :icon="person" />
-          <ion-label>我的</ion-label>
-        </ion-tab-button>
-      </ion-tab-bar>
-    </ion-tabs>
-  </ion-page>
+    <div v-if="isGenerating" class="loading-overlay">
+      <div class="loading-card">
+        <div class="loader" />
+        <p>{{ generatingMessage }}</p>
+      </div>
+    </div>
+  </div>
 </template>
 
 <script setup lang="ts">
 import { ref } from 'vue';
-import { useRouter } from 'vue-router';
-import { IonLoading, IonTabBar, IonTabButton, IonTabs, IonLabel, IonIcon, IonPage, IonRouterOutlet, actionSheetController, toastController } from '@ionic/vue';
-import { addCircle, barChart, book, person, school } from 'ionicons/icons';
+import { useRoute, useRouter, RouterLink, RouterView } from 'vue-router';
+import { BarChart3, BookOpen, CircleUserRound, GraduationCap, PlusCircle } from 'lucide-vue-next';
 import { generateLatexDraftByVisionStream, pickImageAsBase64, saveVisionDraftToStorage } from '@/services/ai';
 
+const route = useRoute();
 const router = useRouter();
 const isGenerating = ref(false);
 const generatingMessage = ref('正在识别题目与标签...');
+
+function isActive(path: string) {
+  return route.path.startsWith(path);
+}
 
 async function handleCreateClick() {
   if (isGenerating.value) {
@@ -65,7 +68,12 @@ async function handleCreateClick() {
   try {
     isGenerating.value = true;
     generatingMessage.value = '请选择图片来源...';
-    const source = await chooseImageSource();
+    const source = chooseImageSource();
+
+    if (!source) {
+      return;
+    }
+
     const imageBase64 = await pickImageAsBase64(source);
     const draft = await generateLatexDraftByVisionStream(imageBase64, (evt) => {
       switch (evt.stage) {
@@ -93,78 +101,106 @@ async function handleCreateClick() {
     saveVisionDraftToStorage(draft);
     router.push('/records/new');
   } catch {
-    const toast = await toastController.create({
-      message: '拍照或识别失败，请重试。',
-      duration: 1800,
-      color: 'warning',
-      position: 'top',
-    });
-    await toast.present();
+    window.alert('拍照或识别失败，请重试。');
   } finally {
     isGenerating.value = false;
     generatingMessage.value = '正在识别题目与标签...';
   }
 }
 
-async function chooseImageSource(): Promise<'camera' | 'album' | 'file'> {
-  const sheet = await actionSheetController.create({
-    header: '选择图片来源',
-    buttons: [
-      { text: '拍照', data: { source: 'camera' } },
-      { text: '相册', data: { source: 'album' } },
-      { text: '文件', data: { source: 'file' } },
-      { text: '取消', role: 'cancel' },
-    ],
-  });
-  await sheet.present();
-  const result = await sheet.onDidDismiss();
-  return (result.data?.source as 'camera' | 'album' | 'file') || 'camera';
+function chooseImageSource(): 'camera' | 'album' | 'file' | null {
+  const selected = window.prompt('选择图片来源: 1=拍照, 2=相册, 3=文件', '1');
+
+  if (selected === null) {
+    return null;
+  }
+
+  switch (selected.trim()) {
+    case '1':
+      return 'camera';
+    case '2':
+      return 'album';
+    case '3':
+      return 'file';
+    default:
+      return 'camera';
+  }
 }
 </script>
 
 <style scoped>
+.tabs-layout {
+  min-height: 100dvh;
+  background:
+    radial-gradient(circle at 16% -8%, rgba(124, 186, 255, 0.28), transparent 40%),
+    radial-gradient(circle at 95% 4%, rgba(89, 219, 171, 0.2), transparent 34%),
+    radial-gradient(circle at 50% 100%, rgba(255, 255, 255, 0.7), transparent 48%),
+    hsl(var(--background));
+}
+
+.tabs-content {
+  padding: 16px 16px calc(88px + env(safe-area-inset-bottom, 0px));
+}
+
 .main-tabbar {
-  --background: rgba(255, 255, 255, 0.5);
-  backdrop-filter: saturate(185%) blur(28px);
-  border-top: 1px solid rgba(255, 255, 255, 0.56);
+  position: fixed;
+  left: 12px;
+  right: 12px;
+  bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+  height: 68px;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  align-items: center;
+  gap: 6px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.56);
+  background: rgba(255, 255, 255, 0.66);
   box-shadow:
     0 -8px 30px rgba(18, 34, 56, 0.08),
     inset 0 1px 0 rgba(255, 255, 255, 0.6);
-  min-height: 66px;
-  padding-top: 2px;
-  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 2px);
-  overflow: visible;
+  backdrop-filter: saturate(185%) blur(24px);
+  padding: 0 8px;
 }
 
-.main-tabbar ion-tab-button {
-  --color: rgba(20, 32, 51, 0.7);
-  --color-selected: var(--ion-color-primary);
-  border-radius: 16px;
-  margin: 3px 4px 1px;
-  transition: transform 0.2s ease, background-color 0.2s ease;
+.tab-link {
+  height: 56px;
+  border-radius: 14px;
+  text-decoration: none;
+  color: hsl(var(--muted-foreground));
+  display: inline-flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  transition: transform 0.2s ease, background-color 0.2s ease, color 0.2s ease;
 }
 
-.main-tabbar ion-tab-button.tab-selected:not(.create-tab) {
+.tab-link.active {
+  color: hsl(var(--primary));
   background: linear-gradient(160deg, rgba(255, 255, 255, 0.7), rgba(219, 236, 255, 0.55));
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.65),
-    0 8px 20px rgba(31, 122, 255, 0.12);
 }
 
-.create-tab {
-  --color-selected: #ffffff;
-  margin-top: -8px;
+.tab-icon {
+  width: 18px;
+  height: 18px;
 }
 
-.create-tab.is-generating ion-icon {
-  animation: generating-pulse 1.1s ease-in-out infinite;
+.tab-create {
+  border: none;
+  background: transparent;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
 }
 
-.create-tab ion-icon {
-  font-size: 2.05rem;
-  padding: 8px;
-  border-radius: 999px;
+.create-icon {
+  width: 42px;
+  height: 42px;
   color: #ffffff;
+  border-radius: 999px;
+  padding: 8px;
   background:
     radial-gradient(circle at 30% 22%, rgba(255, 255, 255, 0.4), rgba(255, 255, 255, 0) 45%),
     linear-gradient(160deg, #5aa6ff 0%, #1f7aff 62%, #1669df 100%);
@@ -173,42 +209,63 @@ async function chooseImageSource(): Promise<'camera' | 'album' | 'file'> {
     inset 0 1px 0 rgba(255, 255, 255, 0.42);
 }
 
-.create-tab ion-label {
-  font-weight: 700;
-  letter-spacing: 0.2px;
+.tab-create.is-generating .create-icon {
+  animation: generating-pulse 1.1s ease-in-out infinite;
 }
 
-.main-tabbar::before {
-  content: '';
-  position: absolute;
+.loading-overlay {
+  position: fixed;
   inset: 0;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.46), rgba(255, 255, 255, 0.08)),
-    radial-gradient(circle at 50% -60%, rgba(134, 193, 255, 0.3), rgba(134, 193, 255, 0) 62%);
-  pointer-events: none;
-  border-top: 1px solid rgba(255, 255, 255, 0.62);
+  background: rgba(15, 23, 42, 0.32);
+  backdrop-filter: blur(2px);
+  display: grid;
+  place-items: center;
+  z-index: 50;
+}
+
+.loading-card {
+  min-width: 220px;
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  border-radius: 16px;
+  padding: 20px 16px;
+  text-align: center;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.2);
+}
+
+.loading-card p {
+  margin: 10px 0 0;
+  font-size: 13px;
+  color: #334155;
+}
+
+.loader {
+  width: 26px;
+  height: 26px;
+  border: 3px solid rgba(37, 99, 235, 0.2);
+  border-top-color: #2563eb;
+  border-radius: 50%;
+  margin: 0 auto;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 @keyframes generating-pulse {
   0% {
     transform: scale(1);
-    box-shadow:
-      0 8px 20px rgba(31, 122, 255, 0.35),
-      inset 0 1px 0 rgba(255, 255, 255, 0.42);
   }
 
   50% {
     transform: scale(1.08);
-    box-shadow:
-      0 12px 26px rgba(31, 122, 255, 0.5),
-      inset 0 1px 0 rgba(255, 255, 255, 0.5);
   }
 
   100% {
     transform: scale(1);
-    box-shadow:
-      0 8px 20px rgba(31, 122, 255, 0.35),
-      inset 0 1px 0 rgba(255, 255, 255, 0.42);
   }
 }
 </style>

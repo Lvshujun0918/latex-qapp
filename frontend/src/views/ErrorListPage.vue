@@ -1,71 +1,96 @@
 <template>
-  <ion-page>
-    <ion-header>
-      <ion-toolbar>
-        <ion-title>错题</ion-title>
-      </ion-toolbar>
-    </ion-header>
-    <ion-content class="ion-padding">
-      <ion-loading
-        :is-open="isGenerating"
-        :message="generatingMessage"
-        spinner="crescent"
-        backdrop-dismiss="false"
-      />
+  <section class="page-wrap">
+    <header class="page-header">
+      <h1>错题</h1>
+      <p>记录、检索并持续迭代你的 LaTeX 错题集。</p>
+    </header>
 
-      <ion-card class="hero-card">
-        <ion-card-header>
-          <ion-card-subtitle>AI 错题本</ion-card-subtitle>
-          <ion-card-title>今天继续攻克薄弱点</ion-card-title>
-        </ion-card-header>
-        <ion-card-content>
-          当前共 {{ records.length }} 道题，优先复习高频错因与低掌握度题目。
-        </ion-card-content>
-      </ion-card>
+    <Card class="hero-card">
+      <CardHeader>
+        <CardDescription>AI 错题本</CardDescription>
+        <CardTitle>今天继续攻克薄弱点</CardTitle>
+      </CardHeader>
+      <CardContent>
+        当前共 {{ records.length }} 道题，优先复习高频错因与低掌握度题目。
+      </CardContent>
+    </Card>
 
-      <ion-searchbar placeholder="搜索 LaTeX 题目" />
+    <div class="toolbar">
+      <Input v-model="keyword" placeholder="搜索 LaTeX 题目" />
+      <Button :disabled="isGenerating" @click="createFromCamera">
+        <Camera class="mr-2 h-4 w-4" />
+        {{ isGenerating ? '识别中...' : '拍照录题' }}
+      </Button>
+    </div>
 
-      <ion-list v-if="records.length" class="record-list">
-        <ion-item v-for="record in records" :key="record.id" button detail @click="toDetail(record.id)">
-          <ion-label>
-            <h2>{{ record.title || '未命名题目' }}</h2>
-            <p>{{ record.subject }} · 难度 {{ record.difficulty }} · {{ record.syncStatus }}</p>
-          </ion-label>
-          <ion-badge color="primary">LaTeX</ion-badge>
-        </ion-item>
-      </ion-list>
+    <div v-if="isGenerating" class="loading-inline">
+      {{ generatingMessage }}
+    </div>
 
-      <ion-card v-else class="empty-card">
-        <ion-card-content class="empty-content">
-          <div class="empty-icon-wrap">
-            <ion-icon :icon="sparkles" class="empty-icon" />
-          </div>
-          <h3>暂无错题</h3>
-          <p>点击底部中间新增，拍照后由大模型自动生成 LaTeX 题目、答案与标签。</p>
-          <ion-button :class="{ 'cta-busy': isGenerating }" :disabled="isGenerating" @click="createFromCamera">
-            <ion-icon slot="start" :icon="camera" />
-            {{ isGenerating ? '识别中...' : '立即拍照录题' }}
-          </ion-button>
-        </ion-card-content>
-      </ion-card>
-    </ion-content>
-  </ion-page>
+    <div v-if="filteredRecords.length" class="record-list">
+      <button
+        v-for="record in filteredRecords"
+        :key="record.id"
+        class="record-item"
+        type="button"
+        @click="toDetail(record.id)"
+      >
+        <div>
+          <h3>{{ record.title || '未命名题目' }}</h3>
+          <p>{{ record.subject }} · 难度 {{ record.difficulty }} · {{ record.syncStatus }}</p>
+        </div>
+        <Badge>LaTeX</Badge>
+      </button>
+    </div>
+
+    <Card v-else class="empty-card">
+      <CardContent class="empty-content">
+        <div class="empty-icon-wrap">
+          <Sparkles class="empty-icon" />
+        </div>
+        <h3>暂无错题</h3>
+        <p>点击拍照录题后，由大模型自动生成 LaTeX 题目、答案与标签。</p>
+        <Button :disabled="isGenerating" @click="createFromCamera">
+          <Camera class="mr-2 h-4 w-4" />
+          {{ isGenerating ? '识别中...' : '立即拍照录题' }}
+        </Button>
+      </CardContent>
+    </Card>
+  </section>
 </template>
 
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
-import { onMounted, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { IonBadge, IonButton, IonCard, IonCardContent, IonCardHeader, IonCardSubtitle, IonCardTitle, IonContent, IonHeader, IonIcon, IonItem, IonLabel, IonList, IonLoading, IonPage, IonSearchbar, IonTitle, IonToolbar, actionSheetController, toastController } from '@ionic/vue';
-import { camera, sparkles } from 'ionicons/icons';
+import { Camera, Sparkles } from 'lucide-vue-next';
 import { useRecordStore } from '@/stores/record';
 import { generateLatexDraftByVisionStream, pickImageAsBase64, saveVisionDraftToStorage } from '@/services/ai';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 
 const router = useRouter();
 const recordStore = useRecordStore();
 const { records } = storeToRefs(recordStore);
+const keyword = ref('');
 const isGenerating = ref(false);
 const generatingMessage = ref('正在识别题目与标签...');
+
+const filteredRecords = computed(() => {
+  const term = keyword.value.trim().toLowerCase();
+
+  if (!term) {
+    return records.value;
+  }
+
+  return records.value.filter((record) => {
+    const title = (record.title || '').toLowerCase();
+    const subject = (record.subject || '').toLowerCase();
+    return title.includes(term) || subject.includes(term) || String(record.id).includes(term);
+  });
+});
 
 onMounted(() => {
   recordStore.reload();
@@ -83,7 +108,12 @@ async function createFromCamera() {
   try {
     isGenerating.value = true;
     generatingMessage.value = '请选择图片来源...';
-    const source = await chooseImageSource();
+    const source = chooseImageSource();
+
+    if (!source) {
+      return;
+    }
+
     const imageBase64 = await pickImageAsBase64(source);
     const draft = await generateLatexDraftByVisionStream(imageBase64, (evt) => {
       switch (evt.stage) {
@@ -111,57 +141,101 @@ async function createFromCamera() {
     saveVisionDraftToStorage(draft);
     router.push('/records/new');
   } catch {
-    const toast = await toastController.create({
-      message: '拍照或识别失败，请重试。',
-      duration: 1800,
-      color: 'warning',
-      position: 'top',
-    });
-    await toast.present();
+    window.alert('拍照或识别失败，请重试。');
   } finally {
     isGenerating.value = false;
     generatingMessage.value = '正在识别题目与标签...';
   }
 }
 
-async function chooseImageSource(): Promise<'camera' | 'album' | 'file'> {
-  const sheet = await actionSheetController.create({
-    header: '选择图片来源',
-    buttons: [
-      { text: '拍照', data: { source: 'camera' } },
-      { text: '相册', data: { source: 'album' } },
-      { text: '文件', data: { source: 'file' } },
-      { text: '取消', role: 'cancel' },
-    ],
-  });
-  await sheet.present();
-  const result = await sheet.onDidDismiss();
-  return (result.data?.source as 'camera' | 'album' | 'file') || 'camera';
+function chooseImageSource(): 'camera' | 'album' | 'file' | null {
+  const selected = window.prompt('选择图片来源: 1=拍照, 2=相册, 3=文件', '1');
+
+  if (selected === null) {
+    return null;
+  }
+
+  switch (selected.trim()) {
+    case '1':
+      return 'camera';
+    case '2':
+      return 'album';
+    case '3':
+      return 'file';
+    default:
+      return 'camera';
+  }
 }
 </script>
 
 <style scoped>
+.page-wrap {
+  max-width: 960px;
+  margin: 0 auto;
+  display: grid;
+  gap: 14px;
+}
+
+.page-header h1 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.page-header p {
+  margin: 4px 0 0;
+  color: #64748b;
+  font-size: 14px;
+}
+
 .hero-card {
-  margin-top: 6px;
+  border-radius: 18px;
+  backdrop-filter: saturate(165%) blur(16px);
+}
+
+.toolbar {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+}
+
+.loading-inline {
+  font-size: 13px;
+  color: #2563eb;
 }
 
 .record-list {
-  margin-top: 8px;
+  display: grid;
+  gap: 10px;
 }
 
-h2 {
+.record-item {
+  width: 100%;
+  border: 1px solid rgba(148, 163, 184, 0.34);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: saturate(150%) blur(12px);
+  padding: 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  text-align: left;
+  cursor: pointer;
+}
+
+.record-item h3 {
   margin: 0;
   font-size: 16px;
-  font-weight: 650;
 }
 
-p {
-  margin-top: 6px;
-  color: rgba(20, 32, 51, 0.72);
+.record-item p {
+  margin: 6px 0 0;
+  color: #475569;
+  font-size: 13px;
 }
 
 .empty-card {
-  margin-top: 14px;
+  margin-top: 6px;
 }
 
 .empty-content {
@@ -170,7 +244,7 @@ p {
   flex-direction: column;
   text-align: center;
   gap: 10px;
-  padding: 8px 4px;
+  padding: 20px;
 }
 
 .empty-icon-wrap {
@@ -180,33 +254,28 @@ p {
   place-items: center;
   border-radius: 20px;
   background: linear-gradient(145deg, rgba(31, 122, 255, 0.2), rgba(31, 122, 255, 0.06));
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.46);
 }
 
 .empty-icon {
-  font-size: 34px;
-  color: var(--ion-color-primary);
+  width: 30px;
+  height: 30px;
+  color: #2563eb;
 }
 
-h3 {
+.empty-content h3 {
   margin: 0;
   font-size: 20px;
   font-weight: 700;
 }
 
-.cta-busy {
-  animation: cta-breath 1.2s ease-in-out infinite;
+.empty-content p {
+  margin: 0;
+  color: #475569;
 }
 
-@keyframes cta-breath {
-  0% {
-    transform: scale(1);
-  }
-  50% {
-    transform: scale(1.03);
-  }
-  100% {
-    transform: scale(1);
+@media (max-width: 640px) {
+  .toolbar {
+    grid-template-columns: 1fr;
   }
 }
 </style>
