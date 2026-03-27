@@ -1,2 +1,4 @@
 .env
 test.ps1
+app.db
+server.exe
