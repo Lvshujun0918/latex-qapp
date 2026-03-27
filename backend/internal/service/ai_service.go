@@ -12,7 +12,6 @@ import (
 
 	einoopenai "github.com/cloudwego/eino-ext/components/model/openai"
 	"github.com/cloudwego/eino/components/model"
-	"github.com/cloudwego/eino/compose"
 	"github.com/cloudwego/eino/schema"
 )
 
@@ -25,7 +24,6 @@ type AIService struct {
 
 	visionChat *einoopenai.ChatModel
 	textChat   *einoopenai.ChatModel
-	pipeline   compose.Runnable[*agentPipelineState, *agentPipelineState]
 
 	initOnce sync.Once
 	initErr  error
@@ -53,6 +51,25 @@ type VisionResult struct {
 	AgentTrace    []string `json:"agent_trace"`
 }
 
+type VisionStreamEvent struct {
+	Stage         string   `json:"stage"`
+	Subject       string   `json:"subject,omitempty"`
+	Title         string   `json:"title,omitempty"`
+	QuestionType  string   `json:"question_type,omitempty"`
+	LatexQuestion string   `json:"latex_question,omitempty"`
+	LatexAnswer   string   `json:"latex_answer,omitempty"`
+	LatexSolution string   `json:"latex_solution,omitempty"`
+	Tags          []string `json:"tags,omitempty"`
+	RawContent    string   `json:"raw_content,omitempty"`
+	AgentTrace    []string `json:"agent_trace,omitempty"`
+	Done          bool     `json:"done,omitempty"`
+	Error         string   `json:"error,omitempty"`
+}
+
+type VisionRunOptions struct {
+	IncludeSolution bool
+}
+
 type classifyResult struct {
 	Subject      string `json:"subject"`
 	QuestionType string `json:"question_type"`
@@ -65,6 +82,7 @@ type latexResult struct {
 }
 
 type solveResult struct {
+	LatexAnswer   string `json:"latex_answer"`
 	LatexSolution string `json:"latex_solution"`
 }
 
@@ -83,7 +101,23 @@ func NewAIService(apiKey, baseURL, visionModel, textModel string) *AIService {
 }
 
 func (s *AIService) GenerateLatexDraft(imageBase64 string) (*VisionResult, error) {
-	if err := s.ensureEinoPipeline(); err != nil {
+	return s.generateLatexDraftStreamWithOptions(context.Background(), imageBase64, nil, VisionRunOptions{IncludeSolution: true})
+}
+
+func (s *AIService) GenerateLatexDraftStream(ctx context.Context, imageBase64 string, emit func(*VisionStreamEvent) error) (*VisionResult, error) {
+	return s.generateLatexDraftStreamWithOptions(ctx, imageBase64, emit, VisionRunOptions{IncludeSolution: true})
+}
+
+func (s *AIService) GenerateQuestionDraft(imageBase64 string) (*VisionResult, error) {
+	return s.generateLatexDraftStreamWithOptions(context.Background(), imageBase64, nil, VisionRunOptions{IncludeSolution: false})
+}
+
+func (s *AIService) GenerateQuestionDraftStream(ctx context.Context, imageBase64 string, emit func(*VisionStreamEvent) error) (*VisionResult, error) {
+	return s.generateLatexDraftStreamWithOptions(ctx, imageBase64, emit, VisionRunOptions{IncludeSolution: false})
+}
+
+func (s *AIService) generateLatexDraftStreamWithOptions(ctx context.Context, imageBase64 string, emit func(*VisionStreamEvent) error, opts VisionRunOptions) (*VisionResult, error) {
+	if err := s.ensureEinoModels(); err != nil {
 		return nil, err
 	}
 
@@ -91,37 +125,176 @@ func (s *AIService) GenerateLatexDraft(imageBase64 string) (*VisionResult, error
 		return nil, errors.New("QWEN_API_KEY is empty")
 	}
 
-	state := &agentPipelineState{
-		ImageBase64: imageBase64,
-		Trace:       []string{},
+	state := &agentPipelineState{ImageBase64: imageBase64, Trace: []string{}}
+	emitEvent := func(evt *VisionStreamEvent) error {
+		if emit == nil {
+			return nil
+		}
+		return emit(evt)
 	}
 
-	outState, err := s.pipeline.Invoke(context.Background(), state)
-	if err != nil {
+	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
 
-	meta := outState.Meta
-	latexOut := outState.LatexOut
-	solveOut := outState.SolveOut
-	tagOut := outState.TagOut
-	rawContent := outState.RawContent
-
-	if meta == nil || latexOut == nil || solveOut == nil || tagOut == nil {
-		return nil, errors.New("agent pipeline returned incomplete result")
+	state.Trace = append(state.Trace, "step1: classify subject and question type")
+	meta, err := s.classifyImageMeta(ctx, state.ImageBase64)
+	if err != nil {
+		_ = emitEvent(&VisionStreamEvent{Stage: "classify", Error: err.Error(), AgentTrace: append([]string{}, state.Trace...)})
+		return nil, err
+	}
+	if meta.Subject == "" {
+		meta.Subject = "math"
+	}
+	if meta.QuestionType == "" {
+		meta.QuestionType = "unknown"
+	}
+	state.Meta = meta
+	if err := emitEvent(&VisionStreamEvent{
+		Stage:        "classify",
+		Subject:      meta.Subject,
+		Title:        meta.Title,
+		QuestionType: meta.QuestionType,
+		AgentTrace:   append([]string{}, state.Trace...),
+	}); err != nil {
+		return nil, err
 	}
 
-	return &VisionResult{
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
+	state.Trace = append(state.Trace, "step2: render exam-zh latex by question type")
+	latexOut, rawContent, err := s.generateLatexByType(ctx, state.ImageBase64, state.Meta)
+	if err != nil {
+		_ = emitEvent(&VisionStreamEvent{Stage: "latex", Error: err.Error(), AgentTrace: append([]string{}, state.Trace...)})
+		return nil, err
+	}
+	if strings.TrimSpace(latexOut.LatexQuestion) == "" {
+		latexOut.LatexQuestion = extractLatexBlock(rawContent)
+	}
+	if strings.TrimSpace(latexOut.LatexQuestion) == "" {
+		err = errors.New("empty latex_question from model")
+		_ = emitEvent(&VisionStreamEvent{Stage: "latex", Error: err.Error(), AgentTrace: append([]string{}, state.Trace...)})
+		return nil, err
+	}
+	state.LatexOut = latexOut
+	state.RawContent = rawContent
+	if err := emitEvent(&VisionStreamEvent{
+		Stage:         "latex",
+		Subject:       state.Meta.Subject,
+		Title:         state.Meta.Title,
+		QuestionType:  state.Meta.QuestionType,
 		LatexQuestion: latexOut.LatexQuestion,
 		LatexAnswer:   latexOut.LatexAnswer,
-		LatexSolution: solveOut.LatexSolution,
-		Tags:          tagOut.Tags,
-		Subject:       meta.Subject,
-		Title:         meta.Title,
-		QuestionType:  meta.QuestionType,
 		RawContent:    rawContent,
-		AgentTrace:    outState.Trace,
-	}, nil
+		AgentTrace:    append([]string{}, state.Trace...),
+	}); err != nil {
+		return nil, err
+	}
+
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
+	state.Trace = append(state.Trace, "step4: generate tags from latex and solution")
+	tagOut, err := s.generateTags(ctx, state.Meta, state.LatexOut, state.SolveOut)
+	if err != nil {
+		_ = emitEvent(&VisionStreamEvent{Stage: "tags", Error: err.Error(), AgentTrace: append([]string{}, state.Trace...)})
+		return nil, err
+	}
+	if len(tagOut.Tags) == 0 {
+		tagOut.Tags = inferTags(state.LatexOut.LatexQuestion)
+	}
+	state.TagOut = tagOut
+	if err := emitEvent(&VisionStreamEvent{
+		Stage:      "tags",
+		Tags:       tagOut.Tags,
+		AgentTrace: append([]string{}, state.Trace...),
+	}); err != nil {
+		return nil, err
+	}
+
+	if opts.IncludeSolution {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+
+		state.Trace = append(state.Trace, "step5: solve the latex question")
+		solveOut, err := s.solveByLatex(ctx, state.Meta, state.LatexOut)
+		if err != nil {
+			_ = emitEvent(&VisionStreamEvent{Stage: "solve", Error: err.Error(), AgentTrace: append([]string{}, state.Trace...)})
+			return nil, err
+		}
+		state.SolveOut = solveOut
+		if err := emitEvent(&VisionStreamEvent{
+			Stage:         "solve",
+			LatexAnswer:   solveOut.LatexAnswer,
+			LatexSolution: solveOut.LatexSolution,
+			AgentTrace:    append([]string{}, state.Trace...),
+		}); err != nil {
+			return nil, err
+		}
+	}
+
+	finalAnswer := strings.TrimSpace(state.LatexOut.LatexAnswer)
+	finalSolution := ""
+	if state.SolveOut != nil {
+		if strings.TrimSpace(state.SolveOut.LatexAnswer) != "" {
+			finalAnswer = strings.TrimSpace(state.SolveOut.LatexAnswer)
+		}
+		finalSolution = strings.TrimSpace(state.SolveOut.LatexSolution)
+	}
+
+	final := &VisionResult{
+		LatexQuestion: state.LatexOut.LatexQuestion,
+		LatexAnswer:   finalAnswer,
+		LatexSolution: finalSolution,
+		Tags:          state.TagOut.Tags,
+		Subject:       state.Meta.Subject,
+		Title:         state.Meta.Title,
+		QuestionType:  state.Meta.QuestionType,
+		RawContent:    state.RawContent,
+		AgentTrace:    append([]string{}, state.Trace...),
+	}
+
+	if err := emitEvent(&VisionStreamEvent{
+		Stage:         "final",
+		Subject:       final.Subject,
+		Title:         final.Title,
+		QuestionType:  final.QuestionType,
+		LatexQuestion: final.LatexQuestion,
+		LatexAnswer:   final.LatexAnswer,
+		LatexSolution: final.LatexSolution,
+		Tags:          final.Tags,
+		RawContent:    final.RawContent,
+		AgentTrace:    final.AgentTrace,
+		Done:          true,
+	}); err != nil {
+		return nil, err
+	}
+
+	return final, nil
+}
+
+func (s *AIService) GenerateSolutionByLatex(ctx context.Context, subject string, questionType string, latexQuestion string) (*solveResult, error) {
+	if err := s.ensureEinoModels(); err != nil {
+		return nil, err
+	}
+
+	if strings.TrimSpace(latexQuestion) == "" {
+		return nil, errors.New("latex_question is empty")
+	}
+
+	meta := &classifyResult{Subject: subject, QuestionType: questionType}
+	if strings.TrimSpace(meta.Subject) == "" {
+		meta.Subject = "math"
+	}
+	if strings.TrimSpace(meta.QuestionType) == "" {
+		meta.QuestionType = inferQuestionType(latexQuestion)
+	}
+
+	return s.solveByLatex(ctx, meta, &latexResult{LatexQuestion: latexQuestion})
 }
 
 func (s *AIService) classifyImageMeta(ctx context.Context, imageBase64 string) (*classifyResult, error) {
@@ -201,7 +374,7 @@ func (s *AIService) generateLatexByType(ctx context.Context, imageBase64 string,
 
 func (s *AIService) solveByLatex(ctx context.Context, meta *classifyResult, latexOut *latexResult) (*solveResult, error) {
 
-	prompt := fmt.Sprintf("请对以下%s题进行解答，输出可直接展示的latex解答步骤，不要解释框架外内容。\\n\\n题目latex:\\n%s", meta.QuestionType, latexOut.LatexQuestion)
+	prompt := fmt.Sprintf("请对以下%s题进行解答，输出可直接展示的latex结果。必须通过 toolcall 返回两个字段：latex_answer(最终答案) 与 latex_solution(分步解答)。不要输出框架外内容。\\n\\n题目latex:\\n%s", meta.QuestionType, latexOut.LatexQuestion)
 	messages := []*schema.Message{
 		schema.SystemMessage("You are a math exam solving agent."),
 		schema.UserMessage(prompt),
@@ -217,6 +390,9 @@ func (s *AIService) solveByLatex(ctx context.Context, meta *classifyResult, late
 	if !unmarshalToolCallArguments(msg, "submit_latex_solution", out) {
 		_ = unmarshalJSONFromText(rawContent, out)
 	}
+	if strings.TrimSpace(out.LatexAnswer) == "" {
+		out.LatexAnswer = inferAnswerFromSolution(rawContent)
+	}
 	if strings.TrimSpace(out.LatexSolution) == "" {
 		out.LatexSolution = extractLatexBlock(rawContent)
 	}
@@ -225,13 +401,17 @@ func (s *AIService) solveByLatex(ctx context.Context, meta *classifyResult, late
 }
 
 func (s *AIService) generateTags(ctx context.Context, meta *classifyResult, latexOut *latexResult, solveOut *solveResult) (*tagResult, error) {
+	solutionText := "(未生成解答)"
+	if solveOut != nil && strings.TrimSpace(solveOut.LatexSolution) != "" {
+		solutionText = solveOut.LatexSolution
+	}
 
 	prompt := fmt.Sprintf(
-		"根据题目与解答生成标签，该题目是%s的%s，并补充2-4个知识点标签。返回 toolcall。\\n\\n题目latex:\\n%s\\n\\n解答latex:\\n%s",
+		"根据题目与（可选）解答生成标签，该题目是%s的%s，并补充2-4个知识点标签。返回 toolcall。\\n\\n题目latex:\\n%s\\n\\n解答latex:\\n%s",
 		meta.Subject,
 		meta.QuestionType,
 		latexOut.LatexQuestion,
-		solveOut.LatexSolution,
+		solutionText,
 	)
 
 	messages := []*schema.Message{
@@ -256,7 +436,7 @@ func (s *AIService) generateTags(ctx context.Context, meta *classifyResult, late
 	return out, nil
 }
 
-func (s *AIService) ensureEinoPipeline() error {
+func (s *AIService) ensureEinoModels() error {
 	s.initOnce.Do(func() {
 		if s.apiKey == "" {
 			s.initErr = errors.New("QWEN_API_KEY is empty")
@@ -289,72 +469,6 @@ func (s *AIService) ensureEinoPipeline() error {
 
 		s.visionChat = visionChat
 		s.textChat = textChat
-
-		chain := compose.NewChain[*agentPipelineState, *agentPipelineState]()
-
-		chain.AppendLambda(compose.InvokableLambda(func(ctx context.Context, st *agentPipelineState) (*agentPipelineState, error) {
-			st.Trace = append(st.Trace, "step1: classify subject and question type")
-			meta, err := s.classifyImageMeta(ctx, st.ImageBase64)
-			if err != nil {
-				return nil, err
-			}
-			if meta.Subject == "" {
-				meta.Subject = "math"
-			}
-			if meta.QuestionType == "" {
-				meta.QuestionType = "unknown"
-			}
-			st.Meta = meta
-			return st, nil
-		}))
-
-		chain.AppendLambda(compose.InvokableLambda(func(ctx context.Context, st *agentPipelineState) (*agentPipelineState, error) {
-			st.Trace = append(st.Trace, "step2: render exam-zh latex by question type")
-			latexOut, rawContent, err := s.generateLatexByType(ctx, st.ImageBase64, st.Meta)
-			if err != nil {
-				return nil, err
-			}
-			if strings.TrimSpace(latexOut.LatexQuestion) == "" {
-				latexOut.LatexQuestion = extractLatexBlock(rawContent)
-			}
-			if strings.TrimSpace(latexOut.LatexQuestion) == "" {
-				return nil, errors.New("empty latex_question from model")
-			}
-			st.LatexOut = latexOut
-			st.RawContent = rawContent
-			return st, nil
-		}))
-
-		chain.AppendLambda(compose.InvokableLambda(func(ctx context.Context, st *agentPipelineState) (*agentPipelineState, error) {
-			st.Trace = append(st.Trace, "step3: solve the latex question")
-			solveOut, err := s.solveByLatex(ctx, st.Meta, st.LatexOut)
-			if err != nil {
-				return nil, err
-			}
-			st.SolveOut = solveOut
-			return st, nil
-		}))
-
-		chain.AppendLambda(compose.InvokableLambda(func(ctx context.Context, st *agentPipelineState) (*agentPipelineState, error) {
-			st.Trace = append(st.Trace, "step4: generate tags from latex and solution")
-			tagOut, err := s.generateTags(ctx, st.Meta, st.LatexOut, st.SolveOut)
-			if err != nil {
-				return nil, err
-			}
-			if len(tagOut.Tags) == 0 {
-				tagOut.Tags = inferTags(st.LatexOut.LatexQuestion)
-			}
-			st.TagOut = tagOut
-			return st, nil
-		}))
-
-		r, err := chain.Compile(ctx)
-		if err != nil {
-			s.initErr = fmt.Errorf("compile eino pipeline failed: %w", err)
-			return
-		}
-
-		s.pipeline = r
 	})
 
 	return s.initErr
@@ -441,6 +555,11 @@ func solveToolInfo() *schema.ToolInfo {
 		Name: "submit_latex_solution",
 		Desc: "Return solved steps and final answer in latex format.",
 		ParamsOneOf: schema.NewParamsOneOfByParams(map[string]*schema.ParameterInfo{
+			"latex_answer": {
+				Type:     schema.String,
+				Desc:     "final concise answer in latex",
+				Required: true,
+			},
 			"latex_solution": {
 				Type:     schema.String,
 				Desc:     "latex solution with steps",
@@ -494,6 +613,23 @@ func extractLatexBlock(content string) string {
 	return strings.TrimSpace(content)
 }
 
+func inferAnswerFromSolution(content string) string {
+	boxedRe := regexp.MustCompile(`\\boxed\{([^}]*)\}`)
+	if m := boxedRe.FindStringSubmatch(content); len(m) >= 2 {
+		return strings.TrimSpace(m[1])
+	}
+
+	lines := strings.Split(strings.TrimSpace(content), "\n")
+	for i := len(lines) - 1; i >= 0; i-- {
+		line := strings.TrimSpace(lines[i])
+		if line != "" {
+			return line
+		}
+	}
+
+	return ""
+}
+
 func inferQuestionType(latex string) string {
 	s := strings.ToLower(latex)
 	switch {
@@ -516,7 +652,7 @@ func inferTags(latex string) []string {
 func buildExamPrompt(questionType string, subject string) string {
 	fence := "```"
 	base := "识别试卷题目并排版为`exam-zh`可用的latex格式的完美可用的提示词如下：\n\n" +
-		"选择题：\n\n" +
+		"选择题（可能是单选，也可能是多选，不要默认单选）：\n\n" +
 		fence + "latex\n" +
 		"\\begin{question}[index=1]\n" +
 		"    $\\frac{3}{4}$的相反数是\\pa\n" +
@@ -546,7 +682,7 @@ func buildExamPrompt(questionType string, subject string) string {
 		"    \\end{enumerate}\n" +
 		"\\end{question}\n" +
 		fence + "\n\n" +
-		"识别图中的题型，按照上面的格式排版图片中的内容，使用latex代码块返回，括号用\\pa来表示，不需要其他内容，不必解题。"
+		"识别图中的题型，按照上面的格式排版图片中的内容，使用latex代码块返回，括号用\\pa来表示，不需要其他内容，不必解题。若题面包含'多选'/'可多选'等信息请保留并按多选语义排版。"
 
 	meta := fmt.Sprintf("\n\n已知分类结果：subject=%s, question_type=%s。请优先按该题型输出。", subject, questionType)
 	return base + meta

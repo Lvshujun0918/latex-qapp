@@ -40,12 +40,33 @@ func TestAIService_GenerateLatexDraft_FromLocalImage_Integration(t *testing.T) {
 	svc := NewAIService(apiKey, baseURL, visionModel, textModel)
 	imageBase64 := base64.StdEncoding.EncodeToString(data)
 
-	result, err := svc.GenerateLatexDraft(imageBase64)
+	result, err := svc.GenerateLatexDraftStream(t.Context(), imageBase64, func(evt *VisionStreamEvent) error {
+		if evt == nil {
+			return nil
+		}
+		t.Logf("stream stage=%s done=%v err=%s", evt.Stage, evt.Done, evt.Error)
+		if evt.Subject != "" || evt.QuestionType != "" || evt.Title != "" {
+			t.Logf("stream meta: subject=%s questionType=%s title=%s", evt.Subject, evt.QuestionType, evt.Title)
+		}
+		if evt.LatexQuestion != "" {
+			t.Logf("stream latex_question=%s", evt.LatexQuestion)
+		}
+		if evt.LatexAnswer != "" {
+			t.Logf("stream latex_answer=%s", evt.LatexAnswer)
+		}
+		if evt.LatexSolution != "" {
+			t.Logf("stream latex_solution=%s", evt.LatexSolution)
+		}
+		if len(evt.Tags) > 0 {
+			t.Logf("stream tags=%v", evt.Tags)
+		}
+		return nil
+	})
 	if err != nil {
-		t.Fatalf("GenerateLatexDraft failed: %v", err)
+		t.Fatalf("GenerateLatexDraftStream failed: %v", err)
 	}
 	if result == nil {
-		t.Fatal("GenerateLatexDraft returned nil result")
+		t.Fatal("GenerateLatexDraftStream returned nil result")
 	}
 	if strings.TrimSpace(result.LatexQuestion) == "" {
 		t.Fatalf("expected non-empty latex_question, got empty; trace=%v", result.AgentTrace)

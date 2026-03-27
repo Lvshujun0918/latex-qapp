@@ -40,10 +40,11 @@ func New(
 			auth.GET("/me", middleware.JWTAuth(cfg.JWTSecret), authHandler.Me)
 		}
 
-		ai := api.Group("/ai")
+		ai := api.Group("/ai", middleware.JWTAuth(cfg.JWTSecret))
 		{
-			// Keep vision endpoint public for dev/mobile capture flow where login may be bypassed.
 			ai.POST("/vision/latex", aiHandler.VisionLatex)
+			ai.POST("/vision/latex/stream", aiHandler.VisionLatexStream)
+			ai.POST("/solve", aiHandler.SolveLatex)
 		}
 
 		records := api.Group("/records", middleware.JWTAuth(cfg.JWTSecret))
