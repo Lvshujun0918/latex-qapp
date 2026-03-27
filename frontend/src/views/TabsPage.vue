@@ -5,7 +5,7 @@
 
       <ion-loading
         :is-open="isGenerating"
-        message="正在识别题目、答案与标签..."
+        :message="generatingMessage"
         spinner="crescent"
         backdrop-dismiss="false"
       />
@@ -51,10 +51,11 @@ import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { IonLoading, IonTabBar, IonTabButton, IonTabs, IonLabel, IonIcon, IonPage, IonRouterOutlet, toastController } from '@ionic/vue';
 import { addCircle, barChart, book, person, school } from 'ionicons/icons';
-import { capturePhotoAsBase64, generateLatexDraftByVision, saveVisionDraftToStorage } from '@/services/ai';
+import { capturePhotoAsBase64, generateLatexDraftByVisionStream, saveVisionDraftToStorage } from '@/services/ai';
 
 const router = useRouter();
 const isGenerating = ref(false);
+const generatingMessage = ref('正在识别题目与标签...');
 
 async function handleCreateClick() {
   if (isGenerating.value) {
@@ -63,8 +64,26 @@ async function handleCreateClick() {
 
   try {
     isGenerating.value = true;
+    generatingMessage.value = '正在拍照...';
     const imageBase64 = await capturePhotoAsBase64();
-    const draft = await generateLatexDraftByVision(imageBase64);
+    const draft = await generateLatexDraftByVisionStream(imageBase64, (evt) => {
+      switch (evt.stage) {
+        case 'classify':
+          generatingMessage.value = '正在识别学科与题型...';
+          break;
+        case 'latex':
+          generatingMessage.value = '正在生成题目 LaTeX...';
+          break;
+        case 'tags':
+          generatingMessage.value = '正在生成标签...';
+          break;
+        case 'final':
+          generatingMessage.value = '识别完成，正在进入编辑页...';
+          break;
+        default:
+          break;
+      }
+    });
 
     if (!draft.latexQuestion.trim()) {
       throw new Error('识别结果为空');
@@ -82,6 +101,7 @@ async function handleCreateClick() {
     await toast.present();
   } finally {
     isGenerating.value = false;
+    generatingMessage.value = '正在识别题目与标签...';
   }
 }
 </script>
