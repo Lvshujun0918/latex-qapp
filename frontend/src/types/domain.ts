@@ -38,9 +38,26 @@ export interface AIAnalysisResult {
 export interface VisionLatexDraft {
   latexQuestion: string;
   latexAnswer: string;
+  latexSolution?: string;
   tags: string[];
+  questionType?: string;
   subject?: string;
   title?: string;
+}
+
+export interface VisionStreamEvent {
+  stage: 'classify' | 'latex' | 'tags' | 'solve' | 'final' | 'error';
+  subject?: string;
+  title?: string;
+  question_type?: string;
+  latex_question?: string;
+  latex_answer?: string;
+  latex_solution?: string;
+  tags?: string[];
+  raw_content?: string;
+  agent_trace?: string[];
+  done?: boolean;
+  error?: string;
 }
 
 export interface PDFJob {
