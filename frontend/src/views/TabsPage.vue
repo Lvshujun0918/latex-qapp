@@ -1,5 +1,12 @@
 <template>
   <div class="tabs-layout">
+    <section v-if="errorMessage" class="app-page error-wrap">
+      <Alert variant="destructive">
+        <AlertTitle>拍照生成功能异常</AlertTitle>
+        <AlertDescription>{{ errorMessage }}</AlertDescription>
+      </Alert>
+    </section>
+
     <main class="tabs-content">
       <RouterView />
     </main>
@@ -20,7 +27,7 @@
         :class="{ 'is-generating': isGenerating }"
         :disabled="isGenerating"
         type="button"
-        @click="handleCreateClick"
+        @click="openSourceDialog"
       >
         <PlusCircle class="create-icon" />
       </button>
@@ -42,6 +49,12 @@
         <p>{{ generatingMessage }}</p>
       </div>
     </div>
+
+    <ImageSourceDialog
+      :open="sourceDialogOpen"
+      @update:open="(val) => (sourceDialogOpen = val)"
+      @select="handleCreateClick"
+    />
   </div>
 </template>
 
@@ -49,30 +62,39 @@
 import { ref } from 'vue';
 import { useRoute, useRouter, RouterLink, RouterView } from 'vue-router';
 import { BarChart3, BookOpen, CircleUserRound, GraduationCap, PlusCircle } from 'lucide-vue-next';
+import ImageSourceDialog from '@/components/ImageSourceDialog.vue';
 import { generateLatexDraftByVisionStream, pickImageAsBase64, saveVisionDraftToStorage } from '@/services/ai';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 const route = useRoute();
 const router = useRouter();
 const isGenerating = ref(false);
 const generatingMessage = ref('正在识别题目与标签...');
+const sourceDialogOpen = ref(false);
+const errorMessage = ref('');
 
 function isActive(path: string) {
   return route.path.startsWith(path);
 }
 
-async function handleCreateClick() {
+function openSourceDialog() {
+  if (isGenerating.value) {
+    return;
+  }
+
+  errorMessage.value = '';
+  sourceDialogOpen.value = true;
+}
+
+async function handleCreateClick(source: 'camera' | 'album' | 'file') {
   if (isGenerating.value) {
     return;
   }
 
   try {
+    errorMessage.value = '';
     isGenerating.value = true;
-    generatingMessage.value = '请选择图片来源...';
-    const source = chooseImageSource();
-
-    if (!source) {
-      return;
-    }
+    generatingMessage.value = '正在准备图片...';
 
     const imageBase64 = await pickImageAsBase64(source);
     const draft = await generateLatexDraftByVisionStream(imageBase64, (evt) => {
@@ -100,30 +122,11 @@ async function handleCreateClick() {
 
     saveVisionDraftToStorage(draft);
     router.push('/records/new');
-  } catch {
-    window.alert('拍照或识别失败，请重试。');
+  } catch (error: any) {
+    errorMessage.value = error?.message || '拍照或识别失败，请重试。';
   } finally {
     isGenerating.value = false;
     generatingMessage.value = '正在识别题目与标签...';
-  }
-}
-
-function chooseImageSource(): 'camera' | 'album' | 'file' | null {
-  const selected = window.prompt('选择图片来源: 1=拍照, 2=相册, 3=文件', '1');
-
-  if (selected === null) {
-    return null;
-  }
-
-  switch (selected.trim()) {
-    case '1':
-      return 'camera';
-    case '2':
-      return 'album';
-    case '3':
-      return 'file';
-    default:
-      return 'camera';
   }
 }
 </script>
@@ -140,6 +143,13 @@ function chooseImageSource(): 'camera' | 'album' | 'file' | null {
 
 .tabs-content {
   padding: 16px 16px calc(88px + env(safe-area-inset-bottom, 0px));
+}
+
+.error-wrap {
+  position: sticky;
+  top: 8px;
+  z-index: 30;
+  padding-top: 10px;
 }
 
 .main-tabbar {
@@ -193,6 +203,10 @@ function chooseImageSource(): 'camera' | 'album' | 'file' | null {
   display: grid;
   place-items: center;
   cursor: pointer;
+}
+
+.tab-create:disabled {
+  cursor: not-allowed;
 }
 
 .create-icon {

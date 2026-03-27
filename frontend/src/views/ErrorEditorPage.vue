@@ -1,9 +1,14 @@
 <template>
-  <section class="page-wrap">
-    <header class="page-header">
+  <section class="app-page page-wrap">
+    <header class="app-page-header page-header">
       <h1>录入错题</h1>
       <p>核对识别结果并补全答案、步骤和标签。</p>
     </header>
+
+    <Alert v-if="errorMessage" variant="destructive">
+      <AlertTitle>处理失败</AlertTitle>
+      <AlertDescription>{{ errorMessage }}</AlertDescription>
+    </Alert>
 
     <Card v-if="hasDraft">
       <CardHeader>
@@ -56,6 +61,7 @@ import { useRouter } from 'vue-router';
 import { useRecordStore } from '@/stores/record';
 import { clearVisionDraftStorage, generateSolutionByLatexStream, loadVisionDraftFromStorage } from '@/services/ai';
 import LatexView from '@/components/LatexView.vue';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -74,6 +80,7 @@ const latexSolution = ref('');
 const questionTags = ref<string[]>([]);
 const isSolving = ref(false);
 const solvingStage = ref('');
+const errorMessage = ref('');
 
 const hasDraft = computed(() => latexSource.value.trim().length > 0);
 const tagList = computed(() => questionTags.value.filter((item) => item.trim().length > 0));
@@ -101,6 +108,7 @@ async function generateSolve() {
   }
 
   try {
+    errorMessage.value = '';
     isSolving.value = true;
     solvingStage.value = '准备解答...';
     const solved = await generateSolutionByLatexStream(
@@ -121,8 +129,8 @@ async function generateSolve() {
 
     latexAnswer.value = solved.latexAnswer || latexAnswer.value;
     latexSolution.value = solved.latexSolution || latexSolution.value;
-  } catch {
-    window.alert('解答生成失败，请稍后重试或手动填写。');
+  } catch (error: any) {
+    errorMessage.value = error?.message || '解答生成失败，请稍后重试或手动填写。';
   } finally {
     isSolving.value = false;
     solvingStage.value = '';
@@ -131,6 +139,7 @@ async function generateSolve() {
 
 async function save() {
   try {
+    errorMessage.value = '';
     await recordStore.save({
       subject: subject.value,
       question_type: questionType.value,
@@ -143,8 +152,8 @@ async function save() {
     });
 
     router.replace('/tabs/errors');
-  } catch {
-    window.alert('保存失败，请重试。');
+  } catch (error: any) {
+    errorMessage.value = error?.message || '保存失败，请重试。';
   }
 }
 
@@ -164,22 +173,7 @@ function mapQuestionTypeLabel(type: string) {
 
 <style scoped>
 .page-wrap {
-  max-width: 960px;
-  margin: 0 auto;
-  display: grid;
-  gap: 14px;
-}
-
-.page-header h1 {
-  margin: 0;
-  font-size: 24px;
-  font-weight: 700;
-}
-
-.page-header p {
-  margin: 4px 0 0;
-  color: #64748b;
-  font-size: 14px;
+  gap: 12px;
 }
 
 .editor-content {

@@ -1,9 +1,14 @@
 <template>
-  <section class="page-wrap">
-    <header class="page-header">
+  <section class="app-page page-wrap">
+    <header class="app-page-header page-header">
       <h1>错题</h1>
       <p>记录、检索并持续迭代你的 LaTeX 错题集。</p>
     </header>
+
+    <Alert v-if="errorMessage" variant="destructive">
+      <AlertTitle>拍照生成功能异常</AlertTitle>
+      <AlertDescription>{{ errorMessage }}</AlertDescription>
+    </Alert>
 
     <Card class="hero-card">
       <CardHeader>
@@ -17,7 +22,7 @@
 
     <div class="toolbar">
       <Input v-model="keyword" placeholder="搜索 LaTeX 题目" />
-      <Button :disabled="isGenerating" @click="createFromCamera">
+      <Button :disabled="isGenerating" @click="openSourceDialog">
         <Camera class="mr-2 h-4 w-4" />
         {{ isGenerating ? '识别中...' : '拍照录题' }}
       </Button>
@@ -50,12 +55,18 @@
         </div>
         <h3>暂无错题</h3>
         <p>点击拍照录题后，由大模型自动生成 LaTeX 题目、答案与标签。</p>
-        <Button :disabled="isGenerating" @click="createFromCamera">
+        <Button :disabled="isGenerating" @click="openSourceDialog">
           <Camera class="mr-2 h-4 w-4" />
           {{ isGenerating ? '识别中...' : '立即拍照录题' }}
         </Button>
       </CardContent>
     </Card>
+
+    <ImageSourceDialog
+      :open="sourceDialogOpen"
+      @update:open="(val) => (sourceDialogOpen = val)"
+      @select="createFromCamera"
+    />
   </section>
 </template>
 
@@ -64,8 +75,10 @@ import { storeToRefs } from 'pinia';
 import { computed, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { Camera, Sparkles } from 'lucide-vue-next';
+import ImageSourceDialog from '@/components/ImageSourceDialog.vue';
 import { useRecordStore } from '@/stores/record';
 import { generateLatexDraftByVisionStream, pickImageAsBase64, saveVisionDraftToStorage } from '@/services/ai';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -77,6 +90,8 @@ const { records } = storeToRefs(recordStore);
 const keyword = ref('');
 const isGenerating = ref(false);
 const generatingMessage = ref('正在识别题目与标签...');
+const sourceDialogOpen = ref(false);
+const errorMessage = ref('');
 
 const filteredRecords = computed(() => {
   const term = keyword.value.trim().toLowerCase();
@@ -100,19 +115,24 @@ function toDetail(id: number) {
   router.push(`/records/${id}`);
 }
 
-async function createFromCamera() {
+function openSourceDialog() {
+  if (isGenerating.value) {
+    return;
+  }
+
+  errorMessage.value = '';
+  sourceDialogOpen.value = true;
+}
+
+async function createFromCamera(source: 'camera' | 'album' | 'file') {
   if (isGenerating.value) {
     return;
   }
 
   try {
+    errorMessage.value = '';
     isGenerating.value = true;
-    generatingMessage.value = '请选择图片来源...';
-    const source = chooseImageSource();
-
-    if (!source) {
-      return;
-    }
+    generatingMessage.value = '正在准备图片...';
 
     const imageBase64 = await pickImageAsBase64(source);
     const draft = await generateLatexDraftByVisionStream(imageBase64, (evt) => {
@@ -140,52 +160,18 @@ async function createFromCamera() {
 
     saveVisionDraftToStorage(draft);
     router.push('/records/new');
-  } catch {
-    window.alert('拍照或识别失败，请重试。');
+  } catch (error: any) {
+    errorMessage.value = error?.message || '拍照或识别失败，请重试。';
   } finally {
     isGenerating.value = false;
     generatingMessage.value = '正在识别题目与标签...';
-  }
-}
-
-function chooseImageSource(): 'camera' | 'album' | 'file' | null {
-  const selected = window.prompt('选择图片来源: 1=拍照, 2=相册, 3=文件', '1');
-
-  if (selected === null) {
-    return null;
-  }
-
-  switch (selected.trim()) {
-    case '1':
-      return 'camera';
-    case '2':
-      return 'album';
-    case '3':
-      return 'file';
-    default:
-      return 'camera';
   }
 }
 </script>
 
 <style scoped>
 .page-wrap {
-  max-width: 960px;
-  margin: 0 auto;
-  display: grid;
-  gap: 14px;
-}
-
-.page-header h1 {
-  margin: 0;
-  font-size: 24px;
-  font-weight: 700;
-}
-
-.page-header p {
-  margin: 4px 0 0;
-  color: #64748b;
-  font-size: 14px;
+  gap: 12px;
 }
 
 .hero-card {

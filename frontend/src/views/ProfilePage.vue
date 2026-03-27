@@ -1,9 +1,14 @@
 <template>
-  <section class="page-wrap">
-    <header class="page-header">
+  <section class="app-page page-wrap">
+    <header class="app-page-header page-header">
       <h1>我的</h1>
       <p>管理账号、同步任务与 PDF 导出。</p>
     </header>
+
+    <Alert v-if="message" :variant="messageVariant">
+      <AlertTitle>{{ messageTitle }}</AlertTitle>
+      <AlertDescription>{{ message }}</AlertDescription>
+    </Alert>
 
     <Card>
       <CardHeader>
@@ -30,6 +35,7 @@ import { useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 import { useRecordStore } from '@/stores/record';
 import { syncNow } from '@/services/sync';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
@@ -37,6 +43,9 @@ const authStore = useAuthStore();
 const recordStore = useRecordStore();
 const router = useRouter();
 const syncing = ref(false);
+const message = ref('');
+const messageTitle = ref('');
+const messageVariant = ref<'default' | 'destructive'>('default');
 
 onMounted(() => {
   recordStore.reload();
@@ -49,8 +58,11 @@ async function toSync() {
 
   syncing.value = true;
   try {
+    message.value = '';
     const result = await syncNow();
-    window.alert(result.message);
+    messageTitle.value = result.ok ? '同步已触发' : '同步失败';
+    messageVariant.value = result.ok ? 'default' : 'destructive';
+    message.value = result.message;
     await recordStore.reload();
   } finally {
     syncing.value = false;
@@ -69,22 +81,7 @@ function logout() {
 
 <style scoped>
 .page-wrap {
-  max-width: 960px;
-  margin: 0 auto;
-  display: grid;
-  gap: 14px;
-}
-
-.page-header h1 {
-  margin: 0;
-  font-size: 24px;
-  font-weight: 700;
-}
-
-.page-header p {
-  margin: 4px 0 0;
-  color: #64748b;
-  font-size: 14px;
+  gap: 12px;
 }
 
 .actions {

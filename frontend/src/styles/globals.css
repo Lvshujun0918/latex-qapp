@@ -121,15 +121,20 @@
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased;
   }
 }
 
-@layer base {
-  * {
-    @apply border-border outline-ring/50;
+@layer components {
+  .app-page {
+    @apply mx-auto grid w-full max-w-5xl gap-4 px-3 pb-6 sm:px-4;
   }
-  body {
-    @apply bg-background text-foreground;
+
+  .app-page-header h1 {
+    @apply m-0 text-2xl font-bold tracking-tight;
+  }
+
+  .app-page-header p {
+    @apply mt-1 text-sm text-muted-foreground;
   }
 }
