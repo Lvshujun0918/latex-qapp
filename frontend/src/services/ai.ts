@@ -77,6 +77,7 @@ export async function generateLatexDraftByVisionStream(
   const res = await fetch(url, {
     method: 'POST',
     headers: {
+      Accept: 'text/event-stream',
       'Content-Type': 'application/json',
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
@@ -87,59 +88,32 @@ export async function generateLatexDraftByVisionStream(
     throw new Error(`SSE request failed: ${res.status}`);
   }
 
-  const reader = res.body.getReader();
-  const decoder = new TextDecoder('utf-8');
-  let buffer = '';
   let finalDraft: VisionLatexDraft | null = null;
 
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) {
-      break;
+  await readSSEStream(res, (raw) => {
+    try {
+      const evt = JSON.parse(raw) as VisionStreamEvent;
+      onEvent(evt);
+
+      if (evt.error) {
+        throw new Error(evt.error);
+      }
+
+      if (evt.stage === 'final' || evt.done) {
+        finalDraft = {
+          latexQuestion: evt.latex_question ?? '',
+          latexAnswer: evt.latex_answer ?? '',
+          latexSolution: evt.latex_solution ?? '',
+          tags: evt.tags ?? inferTags(evt.latex_question ?? ''),
+          subject: evt.subject ?? 'math',
+          title: evt.title ?? mapTitleFromType(evt.question_type ?? inferQuestionType(evt.latex_question ?? '')),
+          questionType: evt.question_type ?? inferQuestionType(evt.latex_question ?? ''),
+        };
+      }
+    } catch (err: any) {
+      throw new Error(err?.message || 'failed to parse SSE event');
     }
-
-    buffer += decoder.decode(value, { stream: true });
-    const chunks = buffer.split('\n\n');
-    buffer = chunks.pop() || '';
-
-    for (const chunk of chunks) {
-      const dataLine = chunk
-        .split('\n')
-        .find((line) => line.startsWith('data:'));
-
-      if (!dataLine) {
-        continue;
-      }
-
-      const raw = dataLine.slice(5).trim();
-      if (!raw) {
-        continue;
-      }
-
-      try {
-        const evt = JSON.parse(raw) as VisionStreamEvent;
-        onEvent(evt);
-
-        if (evt.error) {
-          throw new Error(evt.error);
-        }
-
-        if (evt.stage === 'final' || evt.done) {
-          finalDraft = {
-            latexQuestion: evt.latex_question ?? '',
-            latexAnswer: evt.latex_answer ?? '',
-            latexSolution: evt.latex_solution ?? '',
-            tags: evt.tags ?? inferTags(evt.latex_question ?? ''),
-            subject: evt.subject ?? 'math',
-            title: evt.title ?? mapTitleFromType(evt.question_type ?? inferQuestionType(evt.latex_question ?? '')),
-            questionType: evt.question_type ?? inferQuestionType(evt.latex_question ?? ''),
-          };
-        }
-      } catch (err: any) {
-        throw new Error(err?.message || 'failed to parse SSE event');
-      }
-    }
-  }
+  });
 
   if (!finalDraft) {
     throw new Error('SSE finished without final event');
@@ -176,6 +150,7 @@ export async function generateSolutionByLatexStream(
   const res = await fetch(url, {
     method: 'POST',
     headers: {
+      Accept: 'text/event-stream',
       'Content-Type': 'application/json',
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
@@ -190,50 +165,24 @@ export async function generateSolutionByLatexStream(
     throw new Error(`SSE request failed: ${res.status}`);
   }
 
-  const reader = res.body.getReader();
-  const decoder = new TextDecoder('utf-8');
-  let buffer = '';
   let latexAnswer = '';
   let latexSolution = '';
 
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) {
-      break;
+  await readSSEStream(res, (raw) => {
+    const evt = JSON.parse(raw) as { stage: string; latex_answer?: string; latex_solution?: string; done?: boolean; error?: string };
+    onEvent(evt);
+
+    if (evt.error) {
+      throw new Error(evt.error);
     }
 
-    buffer += decoder.decode(value, { stream: true });
-    const chunks = buffer.split('\n\n');
-    buffer = chunks.pop() || '';
-
-    for (const chunk of chunks) {
-      const dataLine = chunk
-        .split('\n')
-        .find((line) => line.startsWith('data:'));
-      if (!dataLine) {
-        continue;
-      }
-
-      const raw = dataLine.slice(5).trim();
-      if (!raw) {
-        continue;
-      }
-
-      const evt = JSON.parse(raw) as { stage: string; latex_answer?: string; latex_solution?: string; done?: boolean; error?: string };
-      onEvent(evt);
-
-      if (evt.error) {
-        throw new Error(evt.error);
-      }
-
-      if (evt.latex_answer) {
-        latexAnswer = evt.latex_answer;
-      }
-      if (evt.latex_solution) {
-        latexSolution = evt.latex_solution;
-      }
+    if (evt.latex_answer) {
+      latexAnswer = evt.latex_answer;
     }
-  }
+    if (evt.latex_solution) {
+      latexSolution = evt.latex_solution;
+    }
+  });
 
   return { latexAnswer, latexSolution };
 }
@@ -356,4 +305,85 @@ function fileToBase64(file: File): Promise<string> {
     reader.onerror = () => reject(new Error('读取文件失败'));
     reader.readAsDataURL(file);
   });
+}
+
+type SSEMessage = {
+  event: string;
+  data: string;
+};
+
+async function readSSEStream(response: Response, onMessage: (data: string, message: SSEMessage) => void | Promise<void>) {
+  if (!response.body) {
+    throw new Error('SSE response body is empty');
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder('utf-8');
+  let buffer = '';
+  let eventName = 'message';
+  let dataLines: string[] = [];
+
+  const emitMessage = async () => {
+    if (!dataLines.length) {
+      eventName = 'message';
+      return;
+    }
+
+    const data = dataLines.join('\n').trim();
+    const message: SSEMessage = { event: eventName, data };
+
+    dataLines = [];
+    eventName = 'message';
+
+    if (!data) {
+      return;
+    }
+
+    await onMessage(data, message);
+  };
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) {
+      break;
+    }
+
+    buffer += decoder.decode(value, { stream: true });
+
+    let lineEnd = buffer.indexOf('\n');
+    while (lineEnd >= 0) {
+      let line = buffer.slice(0, lineEnd);
+      buffer = buffer.slice(lineEnd + 1);
+
+      if (line.endsWith('\r')) {
+        line = line.slice(0, -1);
+      }
+
+      if (line === '') {
+        await emitMessage();
+      } else if (line.startsWith(':')) {
+        // Keep-alive/comment line.
+      } else if (line.startsWith('event:')) {
+        eventName = line.slice(6).trim() || 'message';
+      } else if (line.startsWith('data:')) {
+        dataLines.push(line.slice(5).trimStart());
+      }
+
+      lineEnd = buffer.indexOf('\n');
+    }
+  }
+
+  buffer += decoder.decode();
+  if (buffer.trim()) {
+    const trailing = buffer.replace(/\r/g, '').split('\n');
+    for (const line of trailing) {
+      if (line.startsWith('event:')) {
+        eventName = line.slice(6).trim() || 'message';
+      } else if (line.startsWith('data:')) {
+        dataLines.push(line.slice(5).trimStart());
+      }
+    }
+  }
+
+  await emitMessage();
 }
