@@ -29,16 +29,18 @@
 	--ion-text-color: #142033;
 	--ion-text-color-rgb: 20, 32, 51;
 
-	--app-surface: rgba(255, 255, 255, 0.88);
-	--app-border: rgba(20, 32, 51, 0.08);
-	--app-shadow: 0 8px 28px rgba(12, 24, 42, 0.08);
+	--app-surface: rgba(255, 255, 255, 0.58);
+	--app-border: rgba(255, 255, 255, 0.38);
+	--app-shadow: 0 14px 38px rgba(8, 24, 48, 0.12);
 	--app-header-bg: linear-gradient(135deg, #ffffff 0%, #eef5ff 65%, #e8fff5 100%);
 }
 
 ion-content {
+	--padding-top: calc(env(safe-area-inset-top, 0px) + 10px);
 	--background:
-		radial-gradient(circle at 20% -10%, rgba(64, 148, 255, 0.16), transparent 40%),
-		radial-gradient(circle at 100% 0%, rgba(43, 199, 135, 0.14), transparent 32%),
+		radial-gradient(circle at 16% -8%, rgba(124, 186, 255, 0.28), transparent 40%),
+		radial-gradient(circle at 95% 4%, rgba(89, 219, 171, 0.2), transparent 34%),
+		radial-gradient(circle at 50% 100%, rgba(255, 255, 255, 0.7), transparent 48%),
 		var(--ion-background-color);
 }
 
@@ -47,22 +49,28 @@ ion-header ion-toolbar {
 	--border-color: transparent;
 }
 
+ion-header.header-ios {
+	display: none;
+}
+
 ion-title {
 	display: none;
 }
 
 ion-card {
 	--background: var(--app-surface);
+	backdrop-filter: saturate(165%) blur(16px);
 	border: 1px solid var(--app-border);
 	box-shadow: var(--app-shadow);
 	border-radius: 18px;
 }
 
 ion-item {
-	--background: rgba(255, 255, 255, 0.94);
-	--border-color: rgba(20, 32, 51, 0.08);
+	--background: rgba(255, 255, 255, 0.66);
+	--border-color: rgba(255, 255, 255, 0.42);
 	--inner-border-width: 0;
-	border: 1px solid rgba(20, 32, 51, 0.08);
+	backdrop-filter: saturate(150%) blur(12px);
+	border: 1px solid rgba(255, 255, 255, 0.44);
 	border-radius: 14px;
 	margin-bottom: 10px;
 }
@@ -73,7 +81,7 @@ ion-button {
 }
 
 ion-searchbar {
-	--background: rgba(255, 255, 255, 0.94);
-	--box-shadow: 0 4px 18px rgba(31, 122, 255, 0.08);
+	--background: rgba(255, 255, 255, 0.68);
+	--box-shadow: 0 10px 24px rgba(31, 122, 255, 0.12);
 	--border-radius: 14px;
 }

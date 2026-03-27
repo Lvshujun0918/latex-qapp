@@ -16,7 +16,6 @@
 
         <ion-tab-button tab="create" href="/records/new" class="create-tab" @click.prevent="handleCreateClick">
           <ion-icon aria-hidden="true" :icon="addCircle" />
-          <ion-label>新增</ion-label>
         </ion-tab-button>
 
         <ion-tab-button tab="stats" href="/tabs/stats">
@@ -61,27 +60,35 @@ async function handleCreateClick() {
 
 <style scoped>
 .main-tabbar {
-  --background: rgba(255, 255, 255, 0.94);
-  backdrop-filter: saturate(180%) blur(14px);
-  border-top: 1px solid rgba(18, 34, 56, 0.08);
-  padding-top: 4px;
+  --background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: saturate(180%) blur(24px);
+  border-top: 1px solid rgba(18, 34, 56, 0.1);
+  box-shadow: 0 -8px 28px rgba(18, 34, 56, 0.08);
+  min-height: 66px;
+  padding-top: 2px;
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 2px);
 }
 
 .create-tab {
   --color-selected: var(--ion-color-primary);
-  transform: translateY(-10px);
+  transform: none;
 }
 
 .create-tab ion-icon {
-  font-size: 2.2rem;
-  padding: 4px;
+  font-size: 2.05rem;
+  padding: 8px;
   border-radius: 999px;
-  color: var(--ion-color-primary);
-  background: linear-gradient(180deg, rgba(31, 122, 255, 0.2), rgba(31, 122, 255, 0.08));
-  box-shadow: 0 10px 22px rgba(31, 122, 255, 0.25);
+  color: #ffffff;
+  background:
+    radial-gradient(circle at 30% 22%, rgba(255, 255, 255, 0.4), rgba(255, 255, 255, 0) 45%),
+    linear-gradient(160deg, #5aa6ff 0%, #1f7aff 62%, #1669df 100%);
+  box-shadow:
+    0 8px 20px rgba(31, 122, 255, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.42);
 }
 
 .create-tab ion-label {
   font-weight: 700;
+  letter-spacing: 0.2px;
 }
 </style>
