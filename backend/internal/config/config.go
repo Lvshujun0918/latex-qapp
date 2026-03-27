@@ -2,7 +2,10 @@ package config
 
 import (
 	"os"
+	"path/filepath"
 	"strconv"
+
+	"github.com/joho/godotenv"
 )
 
 type Config struct {
@@ -17,6 +20,8 @@ type Config struct {
 }
 
 func Load() Config {
+	loadDotEnv()
+
 	return Config{
 		Port:            getenv("PORT", "8080"),
 		DatabaseDSN:     getenv("DATABASE_DSN", "file:app.db?cache=shared&mode=rwc"),
@@ -26,6 +31,25 @@ func Load() Config {
 		QwenVisionModel: getenv("QWEN_VISION_MODEL", "qwen-vl-max-latest"),
 		QwenTextModel:   getenv("QWEN_TEXT_MODEL", "qwen-plus"),
 		AllowOrigin:     getenv("ALLOW_ORIGIN", "*"),
+	}
+}
+
+func loadDotEnv() {
+	candidates := []string{
+		".env",
+		filepath.Join("..", ".env"),
+		filepath.Join("..", "..", ".env"),
+		filepath.Join("backend", ".env"),
+	}
+
+	for _, file := range candidates {
+		if _, err := os.Stat(file); err != nil {
+			continue
+		}
+
+		if err := godotenv.Overload(file); err == nil {
+			return
+		}
 	}
 }
 
