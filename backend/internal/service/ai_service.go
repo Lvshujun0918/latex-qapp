@@ -48,7 +48,7 @@ func (s *AIService) GenerateLatexDraft(imageBase64 string) (*VisionResult, error
 		"type": "function",
 		"function": map[string]any{
 			"name":        "submit_exam_latex",
-			"description": "Return exam-zh latex and metadata extracted from paper image.",
+			"description": "返回与exam_zh标签相关的题目信息，latex_question字段必须包含题目的latex格式内容，其他字段从图片中识别或者根据latex_question推断得出",
 			"parameters": map[string]any{
 				"type": "object",
 				"properties": map[string]any{
@@ -67,7 +67,7 @@ func (s *AIService) GenerateLatexDraft(imageBase64 string) (*VisionResult, error
 	messages := []map[string]any{
 		{
 			"role":    "system",
-			"content": "You are an exam image parser. Always follow user prompt exactly.",
+			"content": "你是一位图片解析转Latex高手，请按照提示词和用户提供的图片工作",
 		},
 		{
 			"role": "user",
@@ -197,5 +197,31 @@ func inferTags(latex string) []string {
 }
 
 func buildExamPrompt() string {
-	return "识别试卷题目并排版为`exam-zh`可用的latex格式的完美可用的提示词如下：\n\n选择题：\n\n```latex\n\\begin{question}[index=1]\n    $\\frac{3}{4}$的相反数是\\pa\n    \\begin{choices}[columns=4]\n        \\item $-\\frac{3}{4}$\n        \\item $\\frac{3}{4}$\n        \\item $\\frac{4}{3}$\n        \\item $-\\frac{4}{3}$\n    \\end{choices}\n\\end{question}\n```\n\n填空题：\n\n```latex\n\\begin{question}\n    己知$\\triangle ABC$为锐角三角形，且$AB=5$，$AC=6$，$\\triangle ABC$的面积为$6\\sqrt{6}$，则$BC=$\\fillin[width = 4em][]。\n\\end{question}\n```\n\n大题：\n\n```latex\n\\begin{question}[index=20]\n    大题题干在这里。\n    \\begin{enumerate}\n        \\item 入射电子的德布罗意波长$\\lambda_e$；\n        \\item 该靶原子K系特征X射线$K\\alpha$线的波长$\\lambda$；\n        \\item 根据实验数据估算该靶原子M层的电离能$E_M$；\n        \\item 有同学发现用带电粒子在电场中的运动也能完成对电子速度的测定，请设计实验方案，并指出需要测定的物理量和计算方法。\n    \\end{enumerate}\n\\end{question}\n```\n\n识别图中的题型，按照上面的格式排版图片中的内容，使用latex代码块返回，括号用\\\\pa来表示，不需要其他内容，不必解题"
+	return `
+	选择题：
+	\begin{question}[index=1]
+	\frac{3}{4}$的相反数是\\pa
+	\begin{choices}[columns=4]
+	\item $-\\frac{3}{4}$
+	\item $\\frac{3}{4}$
+	\item $\\frac{4}{3}$
+	\item $-\\frac{4}{3}$
+	\end{choices}
+	\end{question}
+	填空题：
+	\begin{question}
+	己知$\triangle ABC$为锐角三角形，且$AB=5$，$AC=6$，$\triangle ABC$的面积为$6\sqrt{6}$，则$BC=$\fillin[width = 4em][]。
+	\end{question}
+	大题：
+	\begin{question}[index=20]
+	大题题干在这里。
+	\begin{enumerate}
+	\item 入射电子的德布罗意波长$\lambda_e$；
+	\item 该靶原子K系特征X射线$K\alpha$线的波长$\lambda$；
+	\item 根据实验数据估算该靶原子M层的电离能$E_M$；
+	\item 有同学发现用带电粒子在电场中的运动也能完成对电子速度的测定，请设计实验方案，并指出需要测定的物理量和计算方法。
+	\end{enumerate}
+	\end{question}
+	识别图中的题型，按照上面的对应格式以latex排版图片中的内容，使用toolcall返回，括号用\pa来表示，不需要其他内容，不必解题。
+	`
 }
