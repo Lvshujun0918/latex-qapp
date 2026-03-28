@@ -170,10 +170,22 @@
 
   .app-page-header {
     @apply grid items-center gap-x-3 gap-y-1;
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: auto minmax(0, 1fr) auto;
     grid-template-areas:
-      "title kicker"
-      "desc desc";
+      "back title kicker"
+      "back desc desc";
+  }
+
+  .app-header-back {
+    @apply inline-flex size-8 items-center justify-center rounded-full border border-slate-300/70 bg-white/70 text-base font-semibold text-slate-700 transition-colors hover:bg-slate-100/80;
+    grid-area: back;
+    align-self: center;
+  }
+
+  .dark .app-header-back {
+    border-color: rgba(148, 163, 184, 0.3);
+    background: rgba(30, 41, 59, 0.65);
+    color: #e2e8f0;
   }
 
   .app-page-header h1 {

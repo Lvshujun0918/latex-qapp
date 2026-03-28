@@ -1,8 +1,7 @@
 <template>
-  <section class="app-page app-inner-page page-wrap">
-    <Button variant="outline" size="sm" class="back-btn" @click="goBack">返回上一级</Button>
-
+  <section class="app-page app-inner-page page-wrap pt-8">
     <header class="app-page-header page-header">
+      <Button variant="outline" size="icon-sm" class="app-header-back" @click="goBack" aria-label="返回上一级"><</Button>
       <span class="app-kicker">Task Status</span>
       <h1>PDF 任务</h1>
       <p>查看任务状态与进度。</p>
@@ -43,10 +42,6 @@ function goBack() {
 <style scoped>
 .page-wrap {
   gap: 14px;
-}
-
-.back-btn {
-  justify-self: start;
 }
 
 .job-content {

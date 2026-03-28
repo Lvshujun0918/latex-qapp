@@ -1,8 +1,7 @@
 <template>
   <section class="app-page app-inner-page page-wrap">
-    <Button variant="outline" size="sm" class="back-btn" @click="goBack">返回上一级</Button>
-
     <header class="app-page-header page-header">
+      <Button variant="outline" size="icon-sm" class="app-header-back" @click="goBack" aria-label="返回上一级"><</Button>
       <span class="app-kicker">Draft Studio</span>
       <h1>录入错题</h1>
       <p>核对识别结果并补全答案、步骤和标签。</p>
@@ -186,10 +185,6 @@ function goBack() {
 <style scoped>
 .page-wrap {
   gap: 12px;
-}
-
-.back-btn {
-  justify-self: start;
 }
 
 .editor-content {
