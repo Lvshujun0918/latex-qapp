@@ -271,6 +271,10 @@ function choiceGridStyle(columns: number) {
   line-height: 1.7;
 }
 
+.is-dark .question-card {
+  background: transparent;
+}
+
 :deep(.blank-fillin) {
   display: inline-block;
   min-width: 4em;
