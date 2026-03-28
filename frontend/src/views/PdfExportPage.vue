@@ -1,5 +1,7 @@
 <template>
-  <section class="app-page page-wrap">
+  <section class="app-page app-inner-page page-wrap">
+    <Button variant="outline" size="sm" class="back-btn" @click="goBack">返回上一级</Button>
+
     <header class="app-page-header page-header">
       <span class="app-kicker">Export Center</span>
       <h1>导出错题本 PDF</h1>
@@ -39,11 +41,24 @@ const difficulty = ref(3);
 function submit() {
   router.push('/pdf/jobs/mock-job-1');
 }
+
+function goBack() {
+  if (window.history.length > 1) {
+    router.back();
+    return;
+  }
+
+  router.replace('/tabs/profile');
+}
 </script>
 
 <style scoped>
 .page-wrap {
   gap: 14px;
+}
+
+.back-btn {
+  justify-self: start;
 }
 
 .form-wrap {

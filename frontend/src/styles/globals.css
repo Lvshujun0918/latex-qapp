@@ -148,6 +148,10 @@
     animation: app-reveal 360ms ease-out both;
   }
 
+  .app-inner-page {
+    @apply px-7 sm:px-8;
+  }
+
   .app-page-shell {
     @apply relative overflow-hidden rounded-3xl border border-slate-200/60 bg-white/65 p-4 shadow-[0_18px_45px_rgba(15,23,42,0.08)] backdrop-blur-xl sm:p-5;
     transition: border-color 0.22s ease, box-shadow 0.22s ease, transform 0.22s ease, background-color 0.22s ease;

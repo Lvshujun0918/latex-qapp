@@ -1,5 +1,7 @@
 <template>
-  <section class="app-page page-wrap">
+  <section class="app-page app-inner-page page-wrap">
+    <Button variant="outline" size="sm" class="back-btn" @click="goBack">返回上一级</Button>
+
     <header class="app-page-header page-header">
       <span class="app-kicker">Draft Studio</span>
       <h1>录入错题</h1>
@@ -170,11 +172,24 @@ function mapQuestionTypeLabel(type: string) {
       return '未知题型';
   }
 }
+
+function goBack() {
+  if (window.history.length > 1) {
+    router.back();
+    return;
+  }
+
+  router.replace('/tabs/errors');
+}
 </script>
 
 <style scoped>
 .page-wrap {
   gap: 12px;
+}
+
+.back-btn {
+  justify-self: start;
 }
 
 .editor-content {

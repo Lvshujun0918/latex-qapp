@@ -271,7 +271,7 @@ function choiceGridStyle(columns: number) {
   line-height: 1.7;
 }
 
-.is-dark .question-card {
+.dark .question-card {
   background: transparent;
 }
 

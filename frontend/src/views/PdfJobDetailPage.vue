@@ -1,5 +1,7 @@
 <template>
-  <section class="app-page page-wrap">
+  <section class="app-page app-inner-page page-wrap">
+    <Button variant="outline" size="sm" class="back-btn" @click="goBack">返回上一级</Button>
+
     <header class="app-page-header page-header">
       <span class="app-kicker">Task Status</span>
       <h1>PDF 任务</h1>
@@ -21,14 +23,30 @@
 
 <script setup lang="ts">
 import { useRoute } from 'vue-router';
+import { useRouter } from 'vue-router';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 const route = useRoute();
+const router = useRouter();
+
+function goBack() {
+  if (window.history.length > 1) {
+    router.back();
+    return;
+  }
+
+  router.replace('/pdf/export');
+}
 </script>
 
 <style scoped>
 .page-wrap {
   gap: 14px;
+}
+
+.back-btn {
+  justify-self: start;
 }
 
 .job-content {

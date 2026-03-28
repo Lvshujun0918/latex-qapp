@@ -1,9 +1,11 @@
 <template>
-  <section class="app-page page-wrap" v-if="record">
+  <section class="app-page app-inner-page page-wrap" v-if="record">
+    <Button variant="outline" size="sm" class="back-btn" @click="goBack">返回上一级</Button>
+
     <header class="app-page-header page-header">
       <span class="app-kicker">Error Insight</span>
       <h1>错题详情</h1>
-      <p>查看题目元信息并继续进入 AI 解析。</p>
+      <p>查看题目元信息与 AI 解析结果。</p>
     </header>
 
     <Card class="app-page-shell detail-shell">
@@ -20,7 +22,22 @@
       </CardContent>
     </Card>
 
-    <Button class="action-btn" @click="toAnalysis">进入 AI 深度解析</Button>
+    <Card class="app-page-shell detail-shell">
+      <CardHeader class="detail-header p-0 pb-3">
+        <CardTitle>AI 解析</CardTitle>
+      </CardHeader>
+      <CardContent class="detail-content p-0">
+        <div class="analysis-block">
+          <h4>最终答案</h4>
+          <LatexView :source="record.latexAnswer || '暂无答案'" class="latex-block" />
+        </div>
+
+        <div class="analysis-block">
+          <h4>分步解答 / 错因分析</h4>
+          <LatexView :source="record.mistakeReason || '暂无 AI 解析结果，请先在录入页生成解答。'" class="latex-block" />
+        </div>
+      </CardContent>
+    </Card>
   </section>
 </template>
 
@@ -42,14 +59,23 @@ onMounted(() => {
   recordStore.reload();
 });
 
-function toAnalysis() {
-  router.push(`/records/${route.params.id}/analysis`);
+function goBack() {
+  if (window.history.length > 1) {
+    router.back();
+    return;
+  }
+
+  router.replace('/tabs/errors');
 }
 </script>
 
 <style scoped>
 .page-wrap {
   gap: 14px;
+}
+
+.back-btn {
+  justify-self: start;
 }
 
 .detail-shell {
@@ -65,9 +91,14 @@ function toAnalysis() {
   gap: 12px;
 }
 
-.action-btn {
-  width: 100%;
-  height: 44px;
-  font-weight: 700;
+.analysis-block {
+  display: grid;
+  gap: 8px;
+}
+
+.analysis-block h4 {
+  margin: 0;
+  font-size: 13px;
+  color: #64748b;
 }
 </style>
