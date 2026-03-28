@@ -1,5 +1,3 @@
-export type SyncStatus = 'pending' | 'syncing' | 'synced' | 'conflict' | 'failed';
-
 export interface User {
   id: number;
   username: string;
@@ -21,9 +19,6 @@ export interface ErrorRecord {
   mistakeReason?: string;
   masteryLevel: number;
   reviewCount: number;
-  syncStatus: SyncStatus;
-  localVersion: number;
-  serverVersion: number;
   createdAt: string;
   updatedAt: string;
 }

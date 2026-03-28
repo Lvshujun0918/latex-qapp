@@ -12,6 +12,19 @@ export interface SaveRecordPayload {
   mistake_reason?: string;
 }
 
+export function toSavePayload(record: ErrorRecord): SaveRecordPayload {
+  return {
+    subject: record.subject,
+    question_type: record.questionType,
+    difficulty: record.difficulty,
+    title: record.title,
+    latex_source: record.latexSource,
+    latex_answer: record.latexAnswer,
+    question_tags: record.questionTags,
+    mistake_reason: record.mistakeReason,
+  };
+}
+
 export async function listRecords(): Promise<ErrorRecord[]> {
   const { data } = await apiClient.get('/api/records');
   const rows = data?.data ?? [];
@@ -55,9 +68,6 @@ function normalizeRecord(raw: any): ErrorRecord {
     mistakeReason: raw?.mistakeReason ?? raw?.mistake_reason,
     masteryLevel: Number(raw?.masteryLevel ?? raw?.mastery_level ?? 0),
     reviewCount: Number(raw?.reviewCount ?? raw?.review_count ?? 0),
-    syncStatus: raw?.syncStatus ?? raw?.sync_status ?? 'pending',
-    localVersion: Number(raw?.localVersion ?? raw?.local_version ?? 0),
-    serverVersion: Number(raw?.serverVersion ?? raw?.server_version ?? 0),
     createdAt: String(raw?.createdAt ?? raw?.created_at ?? ''),
     updatedAt: String(raw?.updatedAt ?? raw?.updated_at ?? ''),
   };
