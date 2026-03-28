@@ -16,7 +16,7 @@ func (h *StatsHandler) Overview(c *gin.Context) {
 	httputil.OK(c, gin.H{
 		"total_errors":    0,
 		"subjects":        []any{},
-		"pending_sync":    0,
+		"pending_reviews": 0,
 		"mastery_average": 0,
 	})
 }

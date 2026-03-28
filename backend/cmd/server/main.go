@@ -25,11 +25,10 @@ func main() {
 	authHandler := handler.NewAuthHandler(authService)
 	recordHandler := handler.NewRecordHandler(recordService)
 	aiHandler := handler.NewAIHandler(aiService)
-	syncHandler := handler.NewSyncHandler()
 	statsHandler := handler.NewStatsHandler()
 	pdfHandler := handler.NewPDFHandler()
 
-	r := router.New(cfg, authHandler, recordHandler, aiHandler, syncHandler, statsHandler, pdfHandler)
+	r := router.New(cfg, authHandler, recordHandler, aiHandler, statsHandler, pdfHandler)
 
 	if err := r.Run(":" + cfg.Port); err != nil {
 		log.Fatalf("server run failed: %v", err)

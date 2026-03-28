@@ -2,7 +2,6 @@ package service
 
 import (
 	"encoding/json"
-	"time"
 
 	"latex-qapp/backend/internal/model"
 
@@ -45,7 +44,6 @@ func (s *RecordService) GetByID(userID uint, id uint) (*model.ErrorRecord, error
 
 func (s *RecordService) Create(userID uint, input CreateRecordInput) (*model.ErrorRecord, error) {
 	tagsBytes, _ := json.Marshal(input.QuestionTags)
-	now := time.Now().UnixMilli()
 
 	if input.Subject == "" {
 		input.Subject = "math"
@@ -68,9 +66,6 @@ func (s *RecordService) Create(userID uint, input CreateRecordInput) (*model.Err
 		MistakeReason:     input.MistakeReason,
 		MasteryLevel:      0,
 		ReviewCount:       0,
-		SyncStatus:        "pending",
-		LocalVersion:      now,
-		ServerVersion:     now,
 	}
 
 	if err := s.db.Create(&record).Error; err != nil {
@@ -86,7 +81,6 @@ func (s *RecordService) Update(userID uint, id uint, input CreateRecordInput) (*
 	}
 
 	tagsBytes, _ := json.Marshal(input.QuestionTags)
-	now := time.Now().UnixMilli()
 
 	record.Subject = input.Subject
 	record.QuestionType = input.QuestionType
@@ -97,9 +91,6 @@ func (s *RecordService) Update(userID uint, id uint, input CreateRecordInput) (*
 	record.QuestionTagsJSON = string(tagsBytes)
 	record.MistakeReason = input.MistakeReason
 	record.LatexVersion = record.LatexVersion + 1
-	record.LocalVersion = now
-	record.ServerVersion = now
-	record.SyncStatus = "pending"
 
 	if err := s.db.Save(record).Error; err != nil {
 		return nil, err
