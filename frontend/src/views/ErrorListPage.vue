@@ -23,10 +23,20 @@
 
     <div class="toolbar">
       <Input v-model="keyword" placeholder="搜索 LaTeX 题目" />
-      <Button :disabled="isGenerating" @click="openSourceDialog">
+      <Button :disabled="isGenerating || selectionMode" @click="openSourceDialog">
         <Camera class="mr-2 h-4 w-4" />
         {{ isGenerating ? '识别中...' : '拍照录题' }}
       </Button>
+    </div>
+
+    <div v-if="selectionMode" class="select-toolbar app-soft-card">
+      <p>已选择 {{ selectedIds.length }} 题</p>
+      <div class="select-actions">
+        <Button variant="outline" size="sm" @click="clearSelection">取消选择</Button>
+        <Button size="sm" :disabled="!selectedIds.length || exportingPdf" @click="exportSelectedPdf">
+          {{ exportingPdf ? '生成中...' : '生成 PDF' }}
+        </Button>
+      </div>
     </div>
 
     <div v-if="isGenerating" class="loading-inline">
@@ -38,12 +48,18 @@
         v-for="record in filteredRecords"
         :key="record.id"
         class="record-item app-interactive-surface"
+        :class="{ selected: isSelected(record.id) }"
         type="button"
-        @click="toDetail(record.id)"
+        @pointerdown="onRecordPressStart(record.id)"
+        @pointerup="onRecordPressCancel"
+        @pointerleave="onRecordPressCancel"
+        @pointercancel="onRecordPressCancel"
+        @contextmenu.prevent
+        @click="onRecordClick(record.id)"
       >
         <div>
           <h3>{{ record.title || '未命名题目' }}</h3>
-          <p>{{ record.subject }} · 难度 {{ record.difficulty }} · {{ record.syncStatus }}</p>
+          <p>{{ record.subject }} · 难度 {{ record.difficulty }}</p>
         </div>
         <Badge>LaTeX</Badge>
       </button>
@@ -78,6 +94,7 @@ import { useRouter } from 'vue-router';
 import { Camera, Sparkles } from 'lucide-vue-next';
 import ImageSourceDialog from '@/components/ImageSourceDialog.vue';
 import { useTheme } from '@/composables/useTheme';
+import { exportPdfByRecordIds } from '@/services/pdf';
 import { useRecordStore } from '@/stores/record';
 import { generateLatexDraftByVisionStream, pickImageAsBase64, saveVisionDraftToStorage } from '@/services/ai';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -95,6 +112,11 @@ const isGenerating = ref(false);
 const generatingMessage = ref('正在识别题目与标签...');
 const sourceDialogOpen = ref(false);
 const errorMessage = ref('');
+const selectionMode = ref(false);
+const selectedIds = ref<number[]>([]);
+const exportingPdf = ref(false);
+const suppressClickOnce = ref(false);
+let longPressTimer: number | null = null;
 
 const filteredRecords = computed(() => {
   const term = keyword.value.trim().toLowerCase();
@@ -116,6 +138,87 @@ onMounted(() => {
 
 function toDetail(id: number) {
   router.push(`/records/${id}`);
+}
+
+function isSelected(id: number) {
+  return selectedIds.value.includes(id);
+}
+
+function onRecordPressStart(id: number) {
+  if (selectionMode.value) {
+    return;
+  }
+
+  clearLongPressTimer();
+  longPressTimer = window.setTimeout(() => {
+    selectionMode.value = true;
+    selectedIds.value = [id];
+    suppressClickOnce.value = true;
+  }, 420);
+}
+
+function onRecordPressCancel() {
+  clearLongPressTimer();
+}
+
+function clearLongPressTimer() {
+  if (longPressTimer !== null) {
+    window.clearTimeout(longPressTimer);
+    longPressTimer = null;
+  }
+}
+
+function onRecordClick(id: number) {
+  if (suppressClickOnce.value) {
+    suppressClickOnce.value = false;
+    return;
+  }
+
+  if (selectionMode.value) {
+    toggleSelected(id);
+    return;
+  }
+
+  toDetail(id);
+}
+
+function toggleSelected(id: number) {
+  if (isSelected(id)) {
+    selectedIds.value = selectedIds.value.filter((item) => item !== id);
+  } else {
+    selectedIds.value = [...selectedIds.value, id];
+  }
+
+  if (!selectedIds.value.length) {
+    selectionMode.value = false;
+  }
+}
+
+function clearSelection() {
+  selectionMode.value = false;
+  selectedIds.value = [];
+}
+
+async function exportSelectedPdf() {
+  if (!selectedIds.value.length || exportingPdf.value) {
+    return;
+  }
+
+  exportingPdf.value = true;
+  try {
+    const res = await exportPdfByRecordIds(selectedIds.value);
+    const jobId = res?.data?.jobId ?? res?.jobId;
+    if (!jobId) {
+      throw new Error('未获取到 PDF 任务号');
+    }
+
+    clearSelection();
+    router.push(`/pdf/jobs/${jobId}`);
+  } catch (error: any) {
+    errorMessage.value = error?.message || '生成 PDF 失败，请重试。';
+  } finally {
+    exportingPdf.value = false;
+  }
 }
 
 function openSourceDialog() {
@@ -198,6 +301,25 @@ async function createFromCamera(source: 'camera' | 'album' | 'file') {
   gap: 10px;
 }
 
+.select-toolbar {
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.select-toolbar p {
+  margin: 0;
+  font-size: 13px;
+  color: #475569;
+}
+
+.select-actions {
+  display: inline-flex;
+  gap: 8px;
+}
+
 .record-item {
   width: 100%;
   border: 1px solid rgba(148, 163, 184, 0.34);
@@ -221,6 +343,11 @@ async function createFromCamera(source: 'camera' | 'album' | 'file') {
 .record-item:focus-visible {
   outline: 0;
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.26);
+}
+
+.record-item.selected {
+  border-color: rgba(37, 99, 235, 0.62);
+  background: rgba(219, 234, 254, 0.65);
 }
 
 .record-item h3 {
@@ -279,6 +406,15 @@ async function createFromCamera(source: 'camera' | 'album' | 'file') {
 }
 
 .is-dark .record-item p {
+  color: #cbd5e1;
+}
+
+.is-dark .record-item.selected {
+  border-color: rgba(96, 165, 250, 0.7);
+  background: rgba(30, 58, 138, 0.28);
+}
+
+.is-dark .select-toolbar p {
   color: #cbd5e1;
 }
 
