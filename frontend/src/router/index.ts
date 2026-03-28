@@ -45,14 +45,6 @@ const routes: Array<RouteRecordRaw> = [
     component: () => import('@/views/ErrorDetailPage.vue'),
   },
   {
-    path: '/records/:id/analysis',
-    component: () => import('@/views/AnalysisDetailPage.vue'),
-  },
-  {
-    path: '/pdf/export',
-    component: () => import('@/views/PdfExportPage.vue'),
-  },
-  {
     path: '/pdf/jobs/:jobId',
     component: () => import('@/views/PdfJobDetailPage.vue'),
   },
