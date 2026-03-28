@@ -1,7 +1,7 @@
 import { apiClient } from '@/services/api';
 
-export async function exportPdf(filterPayload: Record<string, unknown>) {
-  const { data } = await apiClient.post('/api/pdf/export', { filter_payload: filterPayload });
+export async function exportPdfByRecordIds(recordIds: number[]) {
+  const { data } = await apiClient.post('/api/pdf/export', { record_ids: recordIds });
   return data;
 }
 
