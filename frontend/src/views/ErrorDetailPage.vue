@@ -145,10 +145,6 @@ async function generateAiSolution() {
   overflow: hidden;
 }
 
-.detail-header {
-  border-bottom: 1px solid rgba(148, 163, 184, 0.24);
-}
-
 .detail-content {
   display: grid;
   gap: 12px;
