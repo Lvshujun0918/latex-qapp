@@ -129,13 +129,33 @@ async function generateSolve() {
       },
     );
 
-    latexAnswer.value = solved.latexAnswer || latexAnswer.value;
-    latexSolution.value = solved.latexSolution || latexSolution.value;
+    // 逐字显示答案和解析
+    if (solved.latexAnswer) {
+      await streamTextDisplay(solved.latexAnswer, (text) => {
+        latexAnswer.value = text;
+      });
+    }
+    if (solved.latexSolution) {
+      await streamTextDisplay(solved.latexSolution, (text) => {
+        latexSolution.value = text;
+      });
+    }
   } catch (error: any) {
     errorMessage.value = error?.message || '解答生成失败，请稍后重试或手动填写。';
   } finally {
     isSolving.value = false;
     solvingStage.value = '';
+  }
+}
+
+async function streamTextDisplay(text: string, onUpdate: (text: string) => void) {
+  let displayed = '';
+  const chars = text.split('');
+  for (const char of chars) {
+    displayed += char;
+    onUpdate(displayed);
+    // 每个字符延迟2ms，营造逐字显示效果
+    await new Promise((resolve) => setTimeout(resolve, 2));
   }
 }
 
@@ -145,7 +165,6 @@ async function save() {
     await recordStore.save({
       subject: subject.value,
       question_type: questionType.value,
-      difficulty: 3,
       title: title.value,
       latex_source: latexSource.value,
       latex_answer: latexAnswer.value,
