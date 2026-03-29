@@ -59,7 +59,7 @@
       >
         <div>
           <h3>{{ record.title || '未命名题目' }}</h3>
-          <p>{{ record.subject }} · 难度 {{ record.difficulty }}</p>
+          <p>{{ record.subject }}</p>
         </div>
         <Badge>LaTeX</Badge>
       </button>
@@ -96,7 +96,7 @@ import ImageSourceDialog from '@/components/ImageSourceDialog.vue';
 import { useTheme } from '@/composables/useTheme';
 import { exportPdfByRecordIds } from '@/services/pdf';
 import { useRecordStore } from '@/stores/record';
-import { generateLatexDraftByVisionStream, pickImageAsBase64, saveVisionDraftToStorage } from '@/services/ai';
+import { pickImageAsBase64 } from '@/services/ai';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -241,31 +241,14 @@ async function createFromCamera(source: 'camera' | 'album' | 'file') {
     generatingMessage.value = '正在准备图片...';
 
     const imageBase64 = await pickImageAsBase64(source);
-    const draft = await generateLatexDraftByVisionStream(imageBase64, (evt) => {
-      switch (evt.stage) {
-        case 'classify':
-          generatingMessage.value = '正在识别学科与题型...';
-          break;
-        case 'latex':
-          generatingMessage.value = '正在生成题目 LaTeX...';
-          break;
-        case 'tags':
-          generatingMessage.value = '正在生成标签...';
-          break;
-        case 'final':
-          generatingMessage.value = '识别完成，正在进入编辑页...';
-          break;
-        default:
-          break;
-      }
+    
+    // 导航到OCR进度页面，传递base64数据
+    router.push({
+      path: '/ocr/progress',
+      query: {
+        data: imageBase64,
+      },
     });
-
-    if (!draft.latexQuestion.trim()) {
-      throw new Error('识别结果为空');
-    }
-
-    saveVisionDraftToStorage(draft);
-    router.push('/records/new');
   } catch (error: any) {
     errorMessage.value = error?.message || '拍照或识别失败，请重试。';
   } finally {

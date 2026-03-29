@@ -15,7 +15,6 @@
         <div class="app-meta-grid">
           <p class="app-meta-item">学科：{{ record.subject }}</p>
           <p class="app-meta-item">题型：{{ record.questionType || 'unknown' }}</p>
-          <p class="app-meta-item">难度：{{ record.difficulty }}</p>
         </div>
         <LatexView :source="record.latexSource || ''" class="latex-block" />
       </CardContent>
@@ -119,19 +118,41 @@ async function generateAiSolution() {
       latexQuestion: record.value.latexSource,
     }, () => {});
 
-    answerText.value = solved.latexAnswer || answerText.value;
-    analysisText.value = solved.latexSolution || analysisText.value;
+    // 逐字显示答案
+    if (solved.latexAnswer) {
+      await streamTextDisplay(solved.latexAnswer, (text) => {
+        answerText.value = text;
+      });
+    }
+
+    // 逐字显示解析
+    if (solved.latexSolution) {
+      await streamTextDisplay(solved.latexSolution, (text) => {
+        analysisText.value = text;
+      });
+    }
 
     await recordStore.updateById(record.value.id, {
       ...toSavePayload(record.value),
-      latex_answer: answerText.value,
-      mistake_reason: analysisText.value,
+      latex_answer: answerText.value || solved.latexAnswer,
+      mistake_reason: analysisText.value || solved.latexSolution,
     });
 
     answerOpen.value = true;
     analysisOpen.value = true;
   } finally {
     generatingAi.value = false;
+  }
+}
+
+async function streamTextDisplay(text: string, onUpdate: (text: string) => void) {
+  let displayed = '';
+  const chars = text.split('');
+  for (const char of chars) {
+    displayed += char;
+    onUpdate(displayed);
+    // 每个字符延迟2ms，营造逐字显示效果
+    await new Promise((resolve) => setTimeout(resolve, 2));
   }
 }
 </script>
