@@ -117,8 +117,7 @@ func (h *PDFHandler) Export(c *gin.Context) {
 		httputil.InternalError(c, fmt.Sprintf("write tex failed: %v", err))
 		return
 	}
-
-	cmd := exec.Command("xelatex", "-interaction=nonstopmode", "-halt-on-error", "-output-directory", jobDir, texPath)
+	cmd := exec.Command("latexmk", "-synctex=1", "-interaction=nonstopmode", "-file-line-error", "-halt-on-error", "-outdir=build", "-xelatex", texPath)
 	var out bytes.Buffer
 	cmd.Stdout = &out
 	cmd.Stderr = &out
