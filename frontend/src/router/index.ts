@@ -48,6 +48,10 @@ const routes: Array<RouteRecordRaw> = [
     path: '/pdf/jobs/:jobId',
     component: () => import('@/views/PdfJobDetailPage.vue'),
   },
+  {
+    path: '/ocr/progress',
+    component: () => import('@/views/OcrProgressPage.vue'),
+  },
 ];
 
 const router = createRouter({
