@@ -44,25 +44,39 @@
     </div>
 
     <div v-if="filteredRecords.length" class="record-list">
-      <button
+      <div
         v-for="record in filteredRecords"
         :key="record.id"
-        class="record-item app-interactive-surface"
-        :class="{ selected: isSelected(record.id) }"
-        type="button"
-        @pointerdown="onRecordPressStart(record.id)"
-        @pointerup="onRecordPressCancel"
-        @pointerleave="onRecordPressCancel"
-        @pointercancel="onRecordPressCancel"
-        @contextmenu.prevent
-        @click="onRecordClick(record.id)"
+        class="record-row"
       >
-        <div>
-          <h3>{{ record.title || '未命名题目' }}</h3>
-          <p>{{ record.subject }}</p>
-        </div>
-        <Badge>LaTeX</Badge>
-      </button>
+        <button class="delete-action" type="button" @click="removeRecordById(record.id)">
+          <Trash2 class="h-4 w-4" />
+          删除
+        </button>
+
+        <button
+          class="record-item app-interactive-surface"
+          :class="{ selected: isSelected(record.id), swiped: swipedId === record.id, dragging: dragRecordId === record.id }"
+          :style="recordStyle(record.id)"
+          type="button"
+          @touchstart="onTouchStart(record.id, $event)"
+          @touchmove="onTouchMove(record.id, $event)"
+          @touchend="onTouchEnd(record.id)"
+          @touchcancel="onTouchCancel"
+          @pointerdown="onRecordPressStart(record.id)"
+          @pointerup="onRecordPressCancel"
+          @pointerleave="onRecordPressCancel"
+          @pointercancel="onRecordPressCancel"
+          @contextmenu.prevent
+          @click="onRecordClick(record.id)"
+        >
+          <div>
+            <h3>{{ record.title || '未命名题目' }}</h3>
+            <p>{{ formatSubject(record.subject) }}</p>
+          </div>
+          <Badge>LaTeX</Badge>
+        </button>
+      </div>
     </div>
 
     <Card v-else class="empty-card">
@@ -91,7 +105,7 @@
 import { storeToRefs } from 'pinia';
 import { computed, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { Camera, Sparkles } from 'lucide-vue-next';
+import { Camera, Sparkles, Trash2 } from 'lucide-vue-next';
 import ImageSourceDialog from '@/components/ImageSourceDialog.vue';
 import { useTheme } from '@/composables/useTheme';
 import { exportPdfByRecordIds } from '@/services/pdf';
@@ -116,6 +130,10 @@ const selectionMode = ref(false);
 const selectedIds = ref<number[]>([]);
 const exportingPdf = ref(false);
 const suppressClickOnce = ref(false);
+const swipedId = ref<number | null>(null);
+const dragRecordId = ref<number | null>(null);
+const dragOffsetX = ref(0);
+const touchStartX = ref(0);
 let longPressTimer: number | null = null;
 
 const filteredRecords = computed(() => {
@@ -169,6 +187,16 @@ function clearLongPressTimer() {
 }
 
 function onRecordClick(id: number) {
+  if (swipedId.value && swipedId.value !== id) {
+    swipedId.value = null;
+    return;
+  }
+
+  if (swipedId.value === id) {
+    swipedId.value = null;
+    return;
+  }
+
   if (suppressClickOnce.value) {
     suppressClickOnce.value = false;
     return;
@@ -180,6 +208,73 @@ function onRecordClick(id: number) {
   }
 
   toDetail(id);
+}
+
+function onTouchStart(id: number, event: TouchEvent) {
+  if (selectionMode.value) {
+    return;
+  }
+  clearLongPressTimer();
+  touchStartX.value = event.touches[0]?.clientX ?? 0;
+  dragRecordId.value = id;
+  dragOffsetX.value = 0;
+}
+
+function onTouchMove(id: number, event: TouchEvent) {
+  if (selectionMode.value || dragRecordId.value !== id) {
+    return;
+  }
+  const currentX = event.touches[0]?.clientX ?? 0;
+  const delta = currentX - touchStartX.value;
+  dragOffsetX.value = Math.max(-88, Math.min(0, delta));
+  if (Math.abs(dragOffsetX.value) > 8) {
+    clearLongPressTimer();
+  }
+}
+
+function onTouchEnd(id: number) {
+  if (selectionMode.value || dragRecordId.value !== id) {
+    return;
+  }
+  swipedId.value = dragOffsetX.value < -52 ? id : null;
+  dragRecordId.value = null;
+  dragOffsetX.value = 0;
+}
+
+function onTouchCancel() {
+  dragRecordId.value = null;
+  dragOffsetX.value = 0;
+}
+
+function recordStyle(id: number) {
+  if (dragRecordId.value === id) {
+    return { transform: `translateX(${dragOffsetX.value}px)` };
+  }
+  if (swipedId.value === id) {
+    return { transform: 'translateX(-88px)' };
+  }
+  return { transform: 'translateX(0)' };
+}
+
+async function removeRecordById(id: number) {
+  if (!window.confirm('确认删除这道错题吗？')) {
+    return;
+  }
+  try {
+    await recordStore.deleteById(id);
+    swipedId.value = null;
+  } catch (error: any) {
+    errorMessage.value = error?.message || '删除失败，请重试。';
+  }
+}
+
+function formatSubject(subject: string) {
+  const value = String(subject || '').trim().toLowerCase();
+  if (value === 'math' || value === '数学') return '数学';
+  if (value === 'physics' || value === '物理') return '物理';
+  if (value === 'chemistry' || value === '化学') return '化学';
+  if (value === 'biology' || value === '生物') return '生物';
+  return subject || '未知';
 }
 
 function toggleSelected(id: number) {
@@ -284,6 +379,29 @@ async function createFromCamera(source: 'camera' | 'album' | 'file') {
   gap: 10px;
 }
 
+.record-row {
+  position: relative;
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.delete-action {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 88px;
+  border: 0;
+  color: #fff;
+  background: linear-gradient(180deg, #ef4444, #dc2626);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
 .select-toolbar {
   padding: 10px 12px;
   display: flex;
@@ -316,6 +434,12 @@ async function createFromCamera(source: 'camera' | 'album' | 'file') {
   text-align: left;
   cursor: pointer;
   transition: transform 0.2s ease, border-color 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
+  position: relative;
+  z-index: 1;
+}
+
+.record-item.dragging {
+  transition: none;
 }
 
 .record-item:hover {

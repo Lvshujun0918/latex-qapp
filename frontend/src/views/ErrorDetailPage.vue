@@ -13,8 +13,8 @@
       </CardHeader>
       <CardContent class="detail-content p-0">
         <div class="app-meta-grid">
-          <p class="app-meta-item">学科：{{ record.subject }}</p>
-          <p class="app-meta-item">题型：{{ record.questionType || 'unknown' }}</p>
+          <p class="app-meta-item">学科：{{ formatSubject(record.subject) }}</p>
+          <p class="app-meta-item">题型：{{ formatQuestionType(record.questionType) }}</p>
         </div>
         <LatexView :source="record.latexSource || ''" class="latex-block" />
       </CardContent>
@@ -154,6 +154,23 @@ async function streamTextDisplay(text: string, onUpdate: (text: string) => void)
     // 每个字符延迟2ms，营造逐字显示效果
     await new Promise((resolve) => setTimeout(resolve, 2));
   }
+}
+
+function formatSubject(subject?: string) {
+  const value = String(subject || '').trim().toLowerCase();
+  if (value === 'math' || value === '数学') return '数学';
+  if (value === 'physics' || value === '物理') return '物理';
+  if (value === 'chemistry' || value === '化学') return '化学';
+  if (value === 'biology' || value === '生物') return '生物';
+  return subject || '未知';
+}
+
+function formatQuestionType(questionType?: string) {
+  const value = String(questionType || '').trim().toLowerCase();
+  if (['choice', '选择', '选择题', 'single_choice', 'multiple_choice'].includes(value)) return '选择';
+  if (['fill_blank', '填空', '填空题'].includes(value)) return '填空';
+  if (['essay', '解答', '解答题', 'subjective'].includes(value)) return '解答';
+  return questionType || '未知';
 }
 </script>
 
