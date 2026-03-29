@@ -48,8 +48,9 @@
         v-for="record in filteredRecords"
         :key="record.id"
         class="record-row"
+        :class="{ opened: swipedId === record.id || dragRecordId === record.id }"
       >
-        <button class="delete-action" type="button" @click="removeRecordById(record.id)">
+        <button class="delete-action" type="button" @click="requestDeleteRecord(record.id)">
           <Trash2 class="h-4 w-4" />
           删除
         </button>
@@ -72,9 +73,9 @@
         >
           <div>
             <h3>{{ record.title || '未命名题目' }}</h3>
-            <p>{{ formatSubject(record.subject) }}</p>
+            <p>{{ formatSubject(record.subject) }} · {{ formatQuestionType(record.questionType) }}</p>
           </div>
-          <Badge>LaTeX</Badge>
+          <ChevronRight class="h-4 w-4 item-arrow" />
         </button>
       </div>
     </div>
@@ -98,6 +99,19 @@
       @update:open="(val) => (sourceDialogOpen = val)"
       @select="createFromCamera"
     />
+
+    <Dialog :open="deleteDialogOpen" @update:open="(val) => (deleteDialogOpen = val)">
+      <DialogContent class="sm:max-w-sm">
+        <DialogHeader>
+          <DialogTitle>确认删除</DialogTitle>
+          <DialogDescription>删除后无法恢复，是否继续删除该错题？</DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <Button variant="outline" @click="deleteDialogOpen = false">取消</Button>
+          <Button variant="destructive" @click="confirmDeleteRecord">确认删除</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   </section>
 </template>
 
@@ -105,16 +119,16 @@
 import { storeToRefs } from 'pinia';
 import { computed, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { Camera, Sparkles, Trash2 } from 'lucide-vue-next';
+import { Camera, ChevronRight, Sparkles, Trash2 } from 'lucide-vue-next';
 import ImageSourceDialog from '@/components/ImageSourceDialog.vue';
 import { useTheme } from '@/composables/useTheme';
 import { exportPdfByRecordIds } from '@/services/pdf';
 import { useRecordStore } from '@/stores/record';
 import { pickImageAsBase64 } from '@/services/ai';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 
 const router = useRouter();
@@ -134,6 +148,8 @@ const swipedId = ref<number | null>(null);
 const dragRecordId = ref<number | null>(null);
 const dragOffsetX = ref(0);
 const touchStartX = ref(0);
+const deleteDialogOpen = ref(false);
+const pendingDeleteId = ref<number | null>(null);
 let longPressTimer: number | null = null;
 
 const filteredRecords = computed(() => {
@@ -256,13 +272,22 @@ function recordStyle(id: number) {
   return { transform: 'translateX(0)' };
 }
 
-async function removeRecordById(id: number) {
-  if (!window.confirm('确认删除这道错题吗？')) {
+function requestDeleteRecord(id: number) {
+  pendingDeleteId.value = id;
+  deleteDialogOpen.value = true;
+}
+
+async function confirmDeleteRecord() {
+  const id = pendingDeleteId.value;
+  if (!id) {
     return;
   }
+
   try {
     await recordStore.deleteById(id);
     swipedId.value = null;
+    pendingDeleteId.value = null;
+    deleteDialogOpen.value = false;
   } catch (error: any) {
     errorMessage.value = error?.message || '删除失败，请重试。';
   }
@@ -275,6 +300,14 @@ function formatSubject(subject: string) {
   if (value === 'chemistry' || value === '化学') return '化学';
   if (value === 'biology' || value === '生物') return '生物';
   return subject || '未知';
+}
+
+function formatQuestionType(questionType?: string) {
+  const value = String(questionType || '').trim().toLowerCase();
+  if (['choice', '选择', '选择题', 'single_choice', 'multiple_choice'].includes(value)) return '选择';
+  if (['fill_blank', '填空', '填空题'].includes(value)) return '填空';
+  if (['essay', '解答', '解答题', 'subjective'].includes(value)) return '解答';
+  return questionType || '未知';
 }
 
 function toggleSelected(id: number) {
@@ -400,6 +433,14 @@ async function createFromCamera(source: 'camera' | 'album' | 'file') {
   gap: 4px;
   font-size: 12px;
   font-weight: 600;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+
+.record-row.opened .delete-action {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .select-toolbar {
@@ -425,8 +466,7 @@ async function createFromCamera(source: 'camera' | 'album' | 'file') {
   width: 100%;
   border: 1px solid rgba(148, 163, 184, 0.34);
   border-radius: 14px;
-  background: rgba(255, 255, 255, 0.72);
-  backdrop-filter: saturate(150%) blur(12px);
+  background: #ffffff;
   padding: 14px;
   display: flex;
   justify-content: space-between;
@@ -466,6 +506,10 @@ async function createFromCamera(source: 'camera' | 'album' | 'file') {
   margin: 6px 0 0;
   color: #475569;
   font-size: 13px;
+}
+
+.item-arrow {
+  color: #94a3b8;
 }
 
 .empty-card {
@@ -509,7 +553,7 @@ async function createFromCamera(source: 'camera' | 'album' | 'file') {
 
 .is-dark .record-item {
   border-color: rgba(148, 163, 184, 0.24);
-  background: rgba(30, 41, 59, 0.56);
+  background: rgba(30, 41, 59, 0.95);
 }
 
 .is-dark .record-item p {
