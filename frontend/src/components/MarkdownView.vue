@@ -5,6 +5,8 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import MarkdownIt from 'markdown-it';
+import katex from 'markdown-it-katex';
+import 'katex/dist/katex.min.css';
 import { useTheme } from '@/composables/useTheme';
 
 const props = defineProps<{
@@ -16,7 +18,7 @@ const md = new MarkdownIt({
   html: false,
   linkify: true,
   breaks: true,
-});
+}).use(katex);
 
 const html = computed(() => {
   const input = (props.source || '').trim();
@@ -69,7 +71,19 @@ const html = computed(() => {
   color: #475569;
 }
 
+.markdown-view :deep(.katex) {
+  color: inherit;
+}
+
+.markdown-view :deep(.katex-render) {
+  display: inline-block;
+}
+
 .markdown-view.is-dark {
+  color: #cbd5e1;
+}
+
+.markdown-view.is-dark :deep(.katex) {
   color: #cbd5e1;
 }
 </style>
