@@ -48,7 +48,7 @@
         v-for="record in filteredRecords"
         :key="record.id"
         class="record-row"
-        :class="{ opened: swipedId === record.id || dragRecordId === record.id }"
+        :class="{ opened: swipedId === record.id }"
       >
         <button class="delete-action" type="button" @click="requestDeleteRecord(record.id)">
           <Trash2 class="h-4 w-4" />
@@ -64,7 +64,7 @@
           @touchmove="onTouchMove(record.id, $event)"
           @touchend="onTouchEnd(record.id)"
           @touchcancel="onTouchCancel"
-          @pointerdown="onRecordPressStart(record.id)"
+          @pointerdown="onRecordPressStart(record.id, $event)"
           @pointerup="onRecordPressCancel"
           @pointerleave="onRecordPressCancel"
           @pointercancel="onRecordPressCancel"
@@ -178,11 +178,19 @@ function isSelected(id: number) {
   return selectedIds.value.includes(id);
 }
 
-function onRecordPressStart(id: number) {
+function onRecordPressStart(id: number, evt?: PointerEvent) {
+  if (evt && evt.pointerType === 'touch') {
+    return;
+  }
+
   if (selectionMode.value) {
     return;
   }
 
+  startLongPressTimer(id);
+}
+
+function startLongPressTimer(id: number) {
   clearLongPressTimer();
   longPressTimer = window.setTimeout(() => {
     selectionMode.value = true;
@@ -230,7 +238,8 @@ function onTouchStart(id: number, event: TouchEvent) {
   if (selectionMode.value) {
     return;
   }
-  clearLongPressTimer();
+
+  startLongPressTimer(id);
   touchStartX.value = event.touches[0]?.clientX ?? 0;
   dragRecordId.value = id;
   dragOffsetX.value = 0;
@@ -243,7 +252,9 @@ function onTouchMove(id: number, event: TouchEvent) {
   const currentX = event.touches[0]?.clientX ?? 0;
   const delta = currentX - touchStartX.value;
   dragOffsetX.value = Math.max(-88, Math.min(0, delta));
-  if (Math.abs(dragOffsetX.value) > 8) {
+
+  // Only cancel long-press when user clearly starts swipe gesture.
+  if (dragOffsetX.value < -18) {
     clearLongPressTimer();
   }
 }
