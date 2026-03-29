@@ -151,12 +151,8 @@ func (s *AIService) generateLatexDraftStreamWithOptions(ctx context.Context, ima
 		_ = emitEvent(&VisionStreamEvent{Stage: "classify", Error: err.Error(), AgentTrace: append([]string{}, state.Trace...)})
 		return nil, err
 	}
-	if meta.Subject == "" {
-		meta.Subject = "math"
-	}
-	if meta.QuestionType == "" {
-		meta.QuestionType = "unknown"
-	}
+	meta.Subject = normalizeSubjectLabel(meta.Subject)
+	meta.QuestionType = normalizeQuestionTypeLabel(meta.QuestionType)
 	state.Meta = meta
 	if err := emitEvent(&VisionStreamEvent{
 		Stage:        "classify",
@@ -295,10 +291,9 @@ func (s *AIService) GenerateSolutionByLatex(ctx context.Context, subject string,
 	}
 
 	meta := &classifyResult{Subject: subject, QuestionType: questionType}
-	if strings.TrimSpace(meta.Subject) == "" {
-		meta.Subject = "math"
-	}
-	if strings.TrimSpace(meta.QuestionType) == "" {
+	meta.Subject = normalizeSubjectLabel(meta.Subject)
+	meta.QuestionType = normalizeQuestionTypeLabel(meta.QuestionType)
+	if strings.TrimSpace(meta.QuestionType) == "未知" {
 		meta.QuestionType = inferQuestionType(latexQuestion)
 	}
 
@@ -371,12 +366,8 @@ func (s *AIService) classifyImageMeta(ctx context.Context, imageBase64 string) (
 		_ = unmarshalJSONFromText(content, out)
 	}
 
-	if out.QuestionType == "" {
-		out.QuestionType = "unknown"
-	}
-	if out.Subject == "" {
-		out.Subject = "math"
-	}
+	out.QuestionType = normalizeQuestionTypeLabel(out.QuestionType)
+	out.Subject = normalizeSubjectLabel(out.Subject)
 	return out, nil
 }
 
@@ -555,17 +546,18 @@ func unmarshalToolCallArguments(msg *schema.Message, functionName string, out an
 func classifyToolInfo() *schema.ToolInfo {
 	return &schema.ToolInfo{
 		Name: "classify_exam_meta",
-		Desc: "Classify subject and question_type from exam image.",
+		Desc: "识别题目学科与题型，返回中文标签。",
 		ParamsOneOf: schema.NewParamsOneOfByParams(map[string]*schema.ParameterInfo{
 			"subject": {
 				Type:     schema.String,
-				Desc:     "subject of the exam question",
+				Desc:     "学科，必须为中文标签",
+				Enum:     []string{"数学", "物理", "化学", "生物", "未知"},
 				Required: true,
 			},
 			"question_type": {
 				Type:     schema.String,
-				Desc:     "question type",
-				Enum:     []string{"choice", "fill_blank", "essay", "unknown"},
+				Desc:     "题型，必须为中文标签",
+				Enum:     []string{"选择", "填空", "解答", "未知"},
 				Required: true,
 			},
 			"title": {
@@ -678,19 +670,53 @@ func inferQuestionType(latex string) string {
 	s := strings.ToLower(latex)
 	switch {
 	case strings.Contains(s, "\\begin{choices}"):
-		return "choice"
+		return "选择"
 	case strings.Contains(s, "\\fillin"):
-		return "fill_blank"
+		return "填空"
 	case strings.Contains(s, "\\begin{enumerate}"):
-		return "essay"
+		return "解答"
 	default:
-		return "unknown"
+		return "未知"
 	}
 }
 
 func inferTags(latex string) []string {
 	typeTag := inferQuestionType(latex)
 	return []string{"exam-zh", typeTag}
+}
+
+func normalizeSubjectLabel(input string) string {
+	v := strings.TrimSpace(strings.ToLower(input))
+	switch v {
+	case "math", "数学":
+		return "数学"
+	case "physics", "物理":
+		return "物理"
+	case "chemistry", "化学":
+		return "化学"
+	case "biology", "生物":
+		return "生物"
+	case "", "unknown", "未知":
+		return "未知"
+	default:
+		return strings.TrimSpace(input)
+	}
+}
+
+func normalizeQuestionTypeLabel(input string) string {
+	v := strings.TrimSpace(strings.ToLower(input))
+	switch v {
+	case "choice", "选择", "选择题", "single_choice", "multiple_choice":
+		return "选择"
+	case "fill_blank", "填空", "填空题":
+		return "填空"
+	case "essay", "解答", "解答题", "subjective":
+		return "解答"
+	case "", "unknown", "未知":
+		return "未知"
+	default:
+		return strings.TrimSpace(input)
+	}
 }
 
 func buildExamPrompt(questionType string, subject string) string {
