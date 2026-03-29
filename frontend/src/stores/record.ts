@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
-import { createRecord, listRecords, updateRecord, type SaveRecordPayload } from '@/services/records';
+import { createRecord, deleteRecord, listRecords, updateRecord, type SaveRecordPayload } from '@/services/records';
 import type { ErrorRecord } from '@/types/domain';
 
 export const useRecordStore = defineStore('record', () => {
@@ -38,11 +38,22 @@ export const useRecordStore = defineStore('record', () => {
     }
   }
 
+  async function deleteById(id: number) {
+    loading.value = true;
+    try {
+      await deleteRecord(id);
+      records.value = records.value.filter((item) => item.id !== id);
+    } finally {
+      loading.value = false;
+    }
+  }
+
   return {
     records,
     loading,
     reload,
     save,
     updateById,
+    deleteById,
   };
 });

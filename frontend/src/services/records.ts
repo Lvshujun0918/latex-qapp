@@ -47,6 +47,10 @@ export async function getRecord(id: number): Promise<ErrorRecord> {
   return normalizeRecord(data?.data ?? {});
 }
 
+export async function deleteRecord(id: number): Promise<void> {
+  await apiClient.delete(`/api/records/${id}`);
+}
+
 function normalizeRecord(raw: any): ErrorRecord {
   const id = Number(raw?.id ?? 0);
   const userId = Number(raw?.userId ?? raw?.user_id ?? 0);
