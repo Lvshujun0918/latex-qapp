@@ -100,14 +100,16 @@ export async function generateLatexDraftByVisionStream(
       }
 
       if (evt.stage === 'final' || evt.done) {
+        const subject = normalizeSubjectLabel(evt.subject);
+        const questionType = normalizeQuestionTypeLabel(evt.question_type ?? inferQuestionType(evt.latex_question ?? ''));
         finalDraft = {
           latexQuestion: evt.latex_question ?? '',
           latexAnswer: evt.latex_answer ?? '',
           latexSolution: evt.latex_solution ?? '',
           tags: evt.tags ?? inferTags(evt.latex_question ?? ''),
-          subject: evt.subject ?? 'math',
-          title: evt.title ?? mapTitleFromType(evt.question_type ?? inferQuestionType(evt.latex_question ?? '')),
-          questionType: evt.question_type ?? inferQuestionType(evt.latex_question ?? ''),
+          subject,
+          title: evt.title ?? mapTitleFromType(questionType),
+          questionType,
         };
       }
     } catch (err: any) {
@@ -129,8 +131,8 @@ export async function generateSolutionByLatex(payload: {
 }): Promise<{ latexAnswer: string; latexSolution: string }> {
   const { data } = await apiClient.post('/api/ai/solve', {
     latex_question: payload.latexQuestion,
-    question_type: payload.questionType ?? 'unknown',
-    subject: payload.subject ?? 'math',
+    question_type: normalizeQuestionTypeLabel(payload.questionType),
+    subject: normalizeSubjectLabel(payload.subject),
   });
 
   const result = data?.data ?? {};
@@ -156,8 +158,8 @@ export async function generateSolutionByLatexStream(
     },
     body: JSON.stringify({
       latex_question: payload.latexQuestion,
-      question_type: payload.questionType ?? 'unknown',
-      subject: payload.subject ?? 'math',
+      question_type: normalizeQuestionTypeLabel(payload.questionType),
+      subject: normalizeSubjectLabel(payload.subject),
     }),
   });
 
@@ -211,13 +213,13 @@ export function clearVisionDraftStorage() {
 function normalizeDraftFromPayload(payload: any): VisionLatexDraft {
   const rawContent = typeof payload?.raw_content === 'string' ? payload.raw_content : '';
   const parsedLatex = payload?.latex_question || extractLatexCode(rawContent);
-  const parsedType = payload?.question_type || inferQuestionType(parsedLatex);
+  const parsedType = normalizeQuestionTypeLabel(payload?.question_type || inferQuestionType(parsedLatex));
   return {
     latexQuestion: parsedLatex ?? '',
     latexAnswer: payload?.latex_answer || '',
     latexSolution: payload?.latex_solution || '',
     tags: Array.isArray(payload?.tags) ? payload.tags : inferTags(parsedLatex),
-    subject: payload?.subject ?? 'math',
+    subject: normalizeSubjectLabel(payload?.subject),
     title: payload?.title ?? mapTitleFromType(parsedType),
     questionType: parsedType,
   };
@@ -238,15 +240,15 @@ function extractLatexCode(text: string): string {
 function inferQuestionType(latex: string): string {
   const content = latex.toLowerCase();
   if (content.includes('\\begin{choices}')) {
-    return 'choice';
+    return '选择';
   }
   if (content.includes('\\fillin')) {
-    return 'fill_blank';
+    return '填空';
   }
   if (content.includes('\\begin{enumerate}')) {
-    return 'essay';
+    return '解答';
   }
-  return 'unknown';
+  return '未知';
 }
 
 function inferTags(latex: string): string[] {
@@ -255,15 +257,34 @@ function inferTags(latex: string): string[] {
 
 function mapTitleFromType(questionType: string): string {
   switch (questionType) {
-    case 'choice':
+    case '选择':
       return '选择题';
-    case 'fill_blank':
+    case '填空':
       return '填空题';
-    case 'essay':
+    case '解答':
       return '大题';
     default:
       return '识别题目';
   }
+}
+
+function normalizeSubjectLabel(input?: string): string {
+  const value = String(input || '').trim().toLowerCase();
+  if (value === 'math' || value === '数学') return '数学';
+  if (value === 'physics' || value === '物理') return '物理';
+  if (value === 'chemistry' || value === '化学') return '化学';
+  if (value === 'biology' || value === '生物') return '生物';
+  if (!value || value === 'unknown' || value === '未知') return '未知';
+  return String(input || '未知');
+}
+
+function normalizeQuestionTypeLabel(input?: string): string {
+  const value = String(input || '').trim().toLowerCase();
+  if (['choice', '选择', '选择题', 'single_choice', 'multiple_choice'].includes(value)) return '选择';
+  if (['fill_blank', '填空', '填空题'].includes(value)) return '填空';
+  if (['essay', '解答', '解答题', 'subjective'].includes(value)) return '解答';
+  if (!value || value === 'unknown' || value === '未知') return '未知';
+  return String(input || '未知');
 }
 
 function pickImageFromFileAsBase64(preferCamera: boolean): Promise<string> {
