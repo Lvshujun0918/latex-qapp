@@ -1,0 +1,119 @@
+\documentclass{exam-zh}
+%基础包
+\usepackage{siunitx}
+\usepackage{float}
+\usepackage{extarrows}
+\usepackage{pifont}
+
+%表格
+\usepackage{tabularray}
+
+%化学式
+\usepackage[version=4]{mhchem}
+
+%加点
+\usepackage{xeCJKfntef}
+
+%图文绕排
+\usepackage{wrapfig}
+
+%水印用
+\usepackage{tikz}
+\usepackage{xcolor}
+
+%数学字体
+\usepackage{amsmath}
+\usepackage{mathtools}
+
+%exam-zh基础设置
+\examsetup{
+    %替换句点
+    style/fullwidth-stop=catcode,
+    %字体
+    font=termes,
+    math-font=termes,
+    %试卷标题
+    title/title-format={\fontsize{16}{16}\selectfont},
+    title/subject-format={\heiti \fontsize{19}{19}\selectfont},
+    %标题间隔
+    title/top-sep=-15pt,
+    title/bottom-sep=-30pt,
+    %试题间隔
+    question/top-sep=0pt,
+    question/bottom-sep=0pt,
+    notice/top-sep=-5pt,
+    notice/bottom-sep=-5pt,
+    page/foot-content=\heiti Z\quad {{subject}}\quad 第;页(共;页),
+    fillin/width=50pt,
+    fillin/no-answer-type = none,
+    question/show-points = true
+}
+%上端对齐
+\raggedbottom
+\NewDocumentCommand{\pa}{o}{\hfill%
+    （
+    \IfNoValueTF{#1}
+    {\hspace{1em}\ding{115}\hspace{1em}}
+    {\hspace{1em}\ding{115}\hspace{1em}}
+    ）%
+}
+%设置为方正书版的字体
+\setCJKmainfont{FZShuSong-Z01S}
+\setCJKsansfont[FakeBold=0.4]{FZHei-B01S}
+\setCJKmonofont{FZFangSong-Z02S}
+\setCJKfamilyfont{zhsong}{FZShuSong-Z01S}
+\setCJKfamilyfont{zhhei}{FZHei-B01S}
+\setCJKfamilyfont{zhkai}{FZKai-Z03S}
+\setCJKfamilyfont{zhfs}[AutoFakeBold]{FZFangSong-Z02S}
+\renewcommand*{\songti}{\CJKfamily{zhsong}}
+\renewcommand*{\heiti}{\CJKfamily{zhhei}}
+\renewcommand*{\kaishu}{\CJKfamily{zhkai}}
+\renewcommand*{\fangsong}{\CJKfamily{zhfs}}
+\renewcommand{\normalsize}{\fontsize{9.5}{9.5}\selectfont}
+
+%中文排版调整
+\xeCJKsetup{
+    PunctStyle=CCT
+}
+   
+%页边距调整
+\AtEndPreamble{
+    \geometry{
+        paperwidth=438pt,
+        paperheight=668pt,
+        left=20pt, 
+        right=20pt, 
+        top=25pt, 
+        bottom=40pt
+    }
+}
+
+%层叠样式的离子
+\mhchemoptions{layout=stacked}
+
+%行内公式统一按照行间的样式
+\everymath{\displaystyle}
+
+%可换页
+\allowdisplaybreaks[4]
+
+%科目和标题
+\title{{{title}}}
+\subject{\LARGE {{subject}}}
+
+\begin{document}
+\vspace{15pt}
+\maketitle
+\vspace{20pt}
+
+%信息栏
+\begin{center}
+    \heiti \fontsize{13}{13}\selectfont
+    班级：\underline{\hspace{6em}} \hspace{4em} 姓名：\underline{\hspace{6em}}\\
+\end{center}
+
+\setlength{\lineskip}{12pt}
+\setlength{\lineskiplimit}{12pt}
+
+{{content}}
+\end{document}
