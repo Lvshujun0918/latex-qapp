@@ -1,0 +1,35 @@
+version: "3.9"
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        GO_VERSION: "1.26"
+    image: latex-qapp-backend:latest
+    container_name: latex-qapp-backend
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    env_file:
+      - .env.release
+    environment:
+      PORT: "8080"
+      GIN_MODE: release
+      TEMPLATE_TEX_PATH: /app/template.tex
+      PDF_OUTPUT_DIR: /app/public/pdfs
+      DATABASE_DSN: file:/app/data/app.db?cache=shared&mode=rwc
+    volumes:
+      - backend_data:/app/data
+      - backend_public:/app/public
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8080/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+volumes:
+  backend_data:
+  backend_public:
