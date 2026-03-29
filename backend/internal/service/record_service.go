@@ -2,6 +2,7 @@ package service
 
 import (
 	"encoding/json"
+	"fmt"
 
 	"latex-qapp/backend/internal/model"
 
@@ -39,6 +40,33 @@ func (s *RecordService) GetByID(userID uint, id uint) (*model.ErrorRecord, error
 		return nil, err
 	}
 	return &item, nil
+}
+
+func (s *RecordService) GetByIDs(userID uint, ids []uint) ([]model.ErrorRecord, error) {
+	if len(ids) == 0 {
+		return []model.ErrorRecord{}, nil
+	}
+
+	var items []model.ErrorRecord
+	if err := s.db.Where("user_id = ? AND id IN ?", userID, ids).Find(&items).Error; err != nil {
+		return nil, err
+	}
+
+	byID := make(map[uint]model.ErrorRecord, len(items))
+	for _, item := range items {
+		byID[item.ID] = item
+	}
+
+	ordered := make([]model.ErrorRecord, 0, len(ids))
+	for _, id := range ids {
+		item, ok := byID[id]
+		if !ok {
+			return nil, fmt.Errorf("record %d not found or not owned by user", id)
+		}
+		ordered = append(ordered, item)
+	}
+
+	return ordered, nil
 }
 
 func (s *RecordService) Create(userID uint, input CreateRecordInput) (*model.ErrorRecord, error) {

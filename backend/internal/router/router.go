@@ -18,6 +18,7 @@ func New(
 	pdfHandler *handler.PDFHandler,
 ) *gin.Engine {
 	r := gin.Default()
+	r.Static("/public", "./public")
 
 	r.Use(cors.New(cors.Config{
 		AllowOrigins:     []string{cfg.AllowOrigin},
