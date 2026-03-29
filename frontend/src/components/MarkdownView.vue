@@ -25,7 +25,10 @@ const html = computed(() => {
   if (!input) {
     return '<p>暂无解析</p>';
   }
-  return md.render(input);
+  const normalized = input
+    .replace(/\\\[([\s\S]*?)\\\]/g, (_m, p1) => `$$${String(p1).trim()}$$`)
+    .replace(/\\\(([\s\S]*?)\\\)/g, (_m, p1) => `$${String(p1).trim()}$`);
+  return md.render(normalized);
 });
 </script>
 
@@ -34,6 +37,7 @@ const html = computed(() => {
   line-height: 1.72;
   font-size: 14px;
   color: #334155;
+  overflow-x: auto;
 }
 
 .markdown-view :deep(p) {
@@ -62,6 +66,7 @@ const html = computed(() => {
   border-radius: 10px;
   padding: 10px;
   overflow-x: auto;
+  max-width: 100%;
 }
 
 .markdown-view :deep(blockquote) {
@@ -73,6 +78,17 @@ const html = computed(() => {
 
 .markdown-view :deep(.katex) {
   color: inherit;
+}
+
+.markdown-view :deep(.katex-display) {
+  overflow-x: auto;
+  overflow-y: hidden;
+  max-width: 100%;
+  margin: 0.6em 0;
+}
+
+.markdown-view :deep(.katex-display > .katex) {
+  white-space: nowrap;
 }
 
 .markdown-view :deep(.katex-render) {

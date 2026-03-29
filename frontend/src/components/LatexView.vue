@@ -144,6 +144,10 @@ function renderRichText(input: string, displayAsBlock = false) {
     return '<span class="latex-empty">暂无内容</span>';
   }
 
+  if (!/[\$]/.test(content) && looksLikeLatexExpression(content)) {
+    return renderMath(content, displayAsBlock);
+  }
+
   const paToken = '__EXAM_PA_BLANK__';
   const fillinToken = '__EXAM_FILLIN_BLANK__';
   const normalized = content
@@ -194,6 +198,14 @@ function escapeHtml(input: string) {
     .replaceAll('&', '&amp;')
     .replaceAll('<', '&lt;')
     .replaceAll('>', '&gt;');
+}
+
+function looksLikeLatexExpression(input: string) {
+  const value = input.trim();
+  if (!value) {
+    return false;
+  }
+  return /\\[a-zA-Z]+|\^|_|\{.*\}|\frac|\sqrt|\boxed/.test(value);
 }
 
 function choiceLabel(index: number) {
