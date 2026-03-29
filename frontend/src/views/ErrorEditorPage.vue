@@ -14,7 +14,7 @@
 
     <Card v-if="hasDraft" class="app-page-shell">
       <CardHeader>
-        <CardDescription>{{ subject || 'unknown' }} · {{ questionTypeLabel }}</CardDescription>
+        <CardDescription>{{ subjectLabel }} · {{ questionTypeLabel }}</CardDescription>
         <CardTitle>{{ title || '识别题目' }}</CardTitle>
       </CardHeader>
       <CardContent class="editor-content">
@@ -74,8 +74,8 @@ const router = useRouter();
 const recordStore = useRecordStore();
 
 const title = ref('');
-const subject = ref('math');
-const questionType = ref('unknown');
+const subject = ref('未知');
+const questionType = ref('未知');
 const latexSource = ref('');
 const latexAnswer = ref('');
 const latexSolution = ref('');
@@ -87,6 +87,7 @@ const errorMessage = ref('');
 const hasDraft = computed(() => latexSource.value.trim().length > 0);
 const tagList = computed(() => questionTags.value.filter((item) => item.trim().length > 0));
 const questionTypeLabel = computed(() => mapQuestionTypeLabel(questionType.value));
+const subjectLabel = computed(() => mapSubjectLabel(subject.value));
 
 onMounted(() => {
   const draft = loadVisionDraftFromStorage();
@@ -179,16 +180,26 @@ async function save() {
 }
 
 function mapQuestionTypeLabel(type: string) {
-  switch (type) {
-    case 'choice':
-      return '选择题';
-    case 'fill_blank':
-      return '填空题';
-    case 'essay':
-      return '大题';
-    default:
-      return '未知题型';
+  const value = String(type || '').trim().toLowerCase();
+  if (['choice', '选择', '选择题', 'single_choice', 'multiple_choice'].includes(value)) {
+    return '选择题';
   }
+  if (['fill_blank', '填空', '填空题'].includes(value)) {
+    return '填空题';
+  }
+  if (['essay', '解答', '解答题', 'subjective'].includes(value)) {
+    return '解答题';
+  }
+  return '未知题型';
+}
+
+function mapSubjectLabel(value: string) {
+  const subjectValue = String(value || '').trim().toLowerCase();
+  if (subjectValue === 'math' || subjectValue === '数学') return '数学';
+  if (subjectValue === 'physics' || subjectValue === '物理') return '物理';
+  if (subjectValue === 'chemistry' || subjectValue === '化学') return '化学';
+  if (subjectValue === 'biology' || subjectValue === '生物') return '生物';
+  return value || '未知';
 }
 
 function goBack() {
