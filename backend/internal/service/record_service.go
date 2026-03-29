@@ -15,7 +15,6 @@ type RecordService struct {
 type CreateRecordInput struct {
 	Subject       string   `json:"subject"`
 	QuestionType  string   `json:"question_type"`
-	Difficulty    int      `json:"difficulty"`
 	Title         string   `json:"title"`
 	LatexSource   string   `json:"latex_source"`
 	LatexAnswer   string   `json:"latex_answer"`
@@ -48,15 +47,11 @@ func (s *RecordService) Create(userID uint, input CreateRecordInput) (*model.Err
 	if input.Subject == "" {
 		input.Subject = "math"
 	}
-	if input.Difficulty <= 0 {
-		input.Difficulty = 3
-	}
 
 	record := model.ErrorRecord{
 		UserID:            userID,
 		Subject:           input.Subject,
 		QuestionType:      input.QuestionType,
-		Difficulty:        input.Difficulty,
 		Title:             input.Title,
 		LatexSource:       input.LatexSource,
 		LatexAnswer:       input.LatexAnswer,
@@ -84,7 +79,6 @@ func (s *RecordService) Update(userID uint, id uint, input CreateRecordInput) (*
 
 	record.Subject = input.Subject
 	record.QuestionType = input.QuestionType
-	record.Difficulty = input.Difficulty
 	record.Title = input.Title
 	record.LatexSource = input.LatexSource
 	record.LatexAnswer = input.LatexAnswer

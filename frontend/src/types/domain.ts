@@ -9,7 +9,6 @@ export interface ErrorRecord {
   userId: number;
   subject: string;
   questionType?: string;
-  difficulty: number;
   title?: string;
   latexSource: string;
   latexAnswer?: string;

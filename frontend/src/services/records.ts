@@ -4,7 +4,6 @@ import type { ErrorRecord } from '@/types/domain';
 export interface SaveRecordPayload {
   subject: string;
   question_type?: string;
-  difficulty?: number;
   title?: string;
   latex_source: string;
   latex_answer?: string;
@@ -16,7 +15,6 @@ export function toSavePayload(record: ErrorRecord): SaveRecordPayload {
   return {
     subject: record.subject,
     question_type: record.questionType,
-    difficulty: record.difficulty,
     title: record.title,
     latex_source: record.latexSource,
     latex_answer: record.latexAnswer,
@@ -58,7 +56,6 @@ function normalizeRecord(raw: any): ErrorRecord {
     userId,
     subject: String(raw?.subject ?? ''),
     questionType: raw?.questionType ?? raw?.question_type,
-    difficulty: Number(raw?.difficulty ?? 0),
     title: raw?.title,
     latexSource: String(raw?.latexSource ?? raw?.latex_source ?? ''),
     latexAnswer: raw?.latexAnswer ?? raw?.latex_answer,
