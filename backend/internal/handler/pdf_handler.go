@@ -117,7 +117,14 @@ func (h *PDFHandler) Export(c *gin.Context) {
 		httputil.InternalError(c, fmt.Sprintf("write tex failed: %v", err))
 		return
 	}
-	cmd := exec.Command("latexmk", "-synctex=1", "-interaction=nonstopmode", "-file-line-error", "-halt-on-error", "-outdir=build", "-xelatex", texPath)
+	buildDir := filepath.Join(jobDir, "build")
+	if err := os.MkdirAll(buildDir, 0o755); err != nil {
+		httputil.InternalError(c, fmt.Sprintf("create build dir failed: %v", err))
+		return
+	}
+
+	cmd := exec.Command("latexmk", "-synctex=1", "-interaction=nonstopmode", "-file-line-error", "-halt-on-error", "-outdir=build", "-xelatex", "paper.tex")
+	cmd.Dir = jobDir
 	var out bytes.Buffer
 	cmd.Stdout = &out
 	cmd.Stderr = &out
@@ -126,9 +133,15 @@ func (h *PDFHandler) Export(c *gin.Context) {
 		return
 	}
 
-	pdfPath := filepath.Join(jobDir, "paper.pdf")
+	pdfPath := filepath.Join(buildDir, "paper.pdf")
 	if _, err := os.Stat(pdfPath); err != nil {
 		httputil.InternalError(c, "pdf not generated")
+		return
+	}
+
+	publicPDFPath := filepath.Join(jobDir, "paper.pdf")
+	if err := copyFile(pdfPath, publicPDFPath); err != nil {
+		httputil.InternalError(c, fmt.Sprintf("copy pdf failed: %v", err))
 		return
 	}
 
@@ -222,4 +235,24 @@ func tailString(input string, max int) string {
 		return input
 	}
 	return input[len(input)-max:]
+}
+
+func copyFile(srcPath, dstPath string) error {
+	in, err := os.Open(srcPath)
+	if err != nil {
+		return err
+	}
+	defer in.Close()
+
+	out, err := os.Create(dstPath)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+
+	if _, err := out.ReadFrom(in); err != nil {
+		return err
+	}
+
+	return out.Sync()
 }

@@ -40,7 +40,12 @@ RUN apt-get update \
       texlive-lang-chinese \
       texlive-science \
       texlive-fonts-recommended \
-      texlive-full \
+      texlive-latex-recommended \
+      texlive-plain-generic \
+      latexmk \
+      fonts-texgyre \
+      fonts-texgyre-math \
+      lmodern \
     && rm -rf /var/lib/apt/lists/*
 
 # Create unprivileged runtime user.
