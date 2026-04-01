@@ -2,6 +2,7 @@ package handler
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -188,9 +189,57 @@ func (h *PDFHandler) JobDetail(c *gin.Context) {
 func buildTemplateContent(records []model.ErrorRecord) string {
 	blocks := make([]string, 0, len(records))
 	for i, item := range records {
-		blocks = append(blocks, wrapQuestionWithIndex(item.LatexSource, i+1))
+		assembled := assembleRecordLatex(item.LatexSource)
+		blocks = append(blocks, wrapQuestionWithIndex(assembled, i+1))
 	}
 	return strings.Join(blocks, "\n\n")
+}
+
+func assembleRecordLatex(rawSource string) string {
+	content := strings.TrimSpace(rawSource)
+	if content == "" {
+		return ""
+	}
+
+	var q service.LatexOutput
+	if err := json.Unmarshal([]byte(content), &q); err != nil {
+		// 非JSON时直接按原始latex处理
+		return content
+	}
+
+	stem := strings.TrimSpace(q.Stem)
+	if stem == "" {
+		stem = "（空题目）"
+	}
+
+	switch strings.TrimSpace(q.QuestionType) {
+	case "选择":
+		opts := make([]string, 0, len(q.Options))
+		for _, opt := range q.Options {
+			clean := strings.TrimSpace(opt)
+			if clean != "" {
+				opts = append(opts, "\\item "+clean)
+			}
+		}
+		if len(opts) == 0 {
+			return stem
+		}
+		return stem + "\n\\begin{choices}\n" + strings.Join(opts, "\n") + "\n\\end{choices}"
+	case "解答":
+		subs := make([]string, 0, len(q.SubQuestions))
+		for _, sq := range q.SubQuestions {
+			clean := strings.TrimSpace(sq)
+			if clean != "" {
+				subs = append(subs, "\\item "+clean)
+			}
+		}
+		if len(subs) == 0 {
+			return stem
+		}
+		return stem + "\n\\begin{enumerate}\n" + strings.Join(subs, "\n") + "\n\\end{enumerate}"
+	default:
+		return stem
+	}
 }
 
 func buildJobQuestions(records []model.ErrorRecord) []pdfJobQuestion {

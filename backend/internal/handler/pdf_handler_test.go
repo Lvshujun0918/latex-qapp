@@ -52,3 +52,21 @@ func TestBuildTemplateContent_IncrementsQuestionIndex(t *testing.T) {
 		t.Fatalf("expected second question index=2, got: %s", got)
 	}
 }
+
+func TestBuildTemplateContent_FromStructuredJSON(t *testing.T) {
+	records := []model.ErrorRecord{
+		{LatexSource: `{"question_type":"选择","stem":"题干","options":["A","B"]}`},
+	}
+
+	got := buildTemplateContent(records)
+
+	if !strings.Contains(got, "\\begin{question}[index=1]") {
+		t.Fatalf("expected wrapped question index=1, got: %s", got)
+	}
+	if !strings.Contains(got, "题干") {
+		t.Fatalf("expected stem rendered, got: %s", got)
+	}
+	if !strings.Contains(got, "\\begin{choices}") || !strings.Contains(got, "\\item A") {
+		t.Fatalf("expected choices rendered from json source, got: %s", got)
+	}
+}
