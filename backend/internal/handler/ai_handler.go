@@ -1,6 +1,9 @@
 package handler
 
 import (
+	"encoding/json"
+	"strings"
+
 	"latex-qapp/backend/internal/service"
 	"latex-qapp/backend/pkg/httputil"
 
@@ -18,6 +21,7 @@ type VisionLatexRequest struct {
 
 type SolveLatexRequest struct {
 	LatexQuestion string `json:"latex_question"`
+	LatexSource   string `json:"latex_source"`
 	QuestionType  string `json:"question_type"`
 	Subject       string `json:"subject"`
 }
@@ -90,12 +94,18 @@ func (h *AIHandler) VisionLatexStream(c *gin.Context) {
 
 func (h *AIHandler) SolveLatex(c *gin.Context) {
 	var req SolveLatexRequest
-	if err := c.ShouldBindJSON(&req); err != nil || req.LatexQuestion == "" {
-		httputil.BadRequest(c, "latex_question required")
+	if err := c.ShouldBindJSON(&req); err != nil {
+		httputil.BadRequest(c, "invalid payload")
 		return
 	}
 
-	result, err := h.aiService.GenerateSolutionByLatex(c.Request.Context(), req.Subject, req.QuestionType, req.LatexQuestion)
+	latexQuestion := resolveSolveLatexInput(req)
+	if latexQuestion == "" {
+		httputil.BadRequest(c, "latex_question or latex_source required")
+		return
+	}
+
+	result, err := h.aiService.GenerateSolutionByLatex(c.Request.Context(), req.Subject, req.QuestionType, latexQuestion)
 	if err != nil {
 		httputil.BadRequest(c, err.Error())
 		return
@@ -106,8 +116,14 @@ func (h *AIHandler) SolveLatex(c *gin.Context) {
 
 func (h *AIHandler) SolveLatexStream(c *gin.Context) {
 	var req SolveLatexRequest
-	if err := c.ShouldBindJSON(&req); err != nil || req.LatexQuestion == "" {
-		httputil.BadRequest(c, "latex_question required")
+	if err := c.ShouldBindJSON(&req); err != nil {
+		httputil.BadRequest(c, "invalid payload")
+		return
+	}
+
+	latexQuestion := resolveSolveLatexInput(req)
+	if latexQuestion == "" {
+		httputil.BadRequest(c, "latex_question or latex_source required")
 		return
 	}
 
@@ -116,7 +132,7 @@ func (h *AIHandler) SolveLatexStream(c *gin.Context) {
 	c.Header("Connection", "keep-alive")
 	c.Header("X-Accel-Buffering", "no")
 
-	_, err := h.aiService.GenerateSolutionByLatexStream(c.Request.Context(), req.Subject, req.QuestionType, req.LatexQuestion, func(evt *service.SolveStreamEvent) error {
+	_, err := h.aiService.GenerateSolutionByLatexStream(c.Request.Context(), req.Subject, req.QuestionType, latexQuestion, func(evt *service.SolveStreamEvent) error {
 		c.SSEvent("progress", evt)
 		c.Writer.Flush()
 		return nil
@@ -125,4 +141,53 @@ func (h *AIHandler) SolveLatexStream(c *gin.Context) {
 		c.SSEvent("progress", &service.SolveStreamEvent{Stage: "error", Error: err.Error(), Done: true})
 		c.Writer.Flush()
 	}
+}
+
+func resolveSolveLatexInput(req SolveLatexRequest) string {
+	if strings.TrimSpace(req.LatexQuestion) != "" {
+		return strings.TrimSpace(req.LatexQuestion)
+	}
+
+	raw := strings.TrimSpace(req.LatexSource)
+	if raw == "" {
+		return ""
+	}
+
+	var out service.LatexOutput
+	if err := json.Unmarshal([]byte(raw), &out); err != nil {
+		return raw
+	}
+
+	stem := strings.TrimSpace(out.Stem)
+	if stem == "" {
+		return ""
+	}
+
+	if strings.TrimSpace(out.QuestionType) == "选择" && len(out.Options) > 0 {
+		items := make([]string, 0, len(out.Options))
+		for _, opt := range out.Options {
+			clean := strings.TrimSpace(opt)
+			if clean != "" {
+				items = append(items, "\\item "+clean)
+			}
+		}
+		if len(items) > 0 {
+			return stem + "\n\\begin{choices}\n" + strings.Join(items, "\n") + "\n\\end{choices}"
+		}
+	}
+
+	if strings.TrimSpace(out.QuestionType) == "解答" && len(out.SubQuestions) > 0 {
+		items := make([]string, 0, len(out.SubQuestions))
+		for _, sub := range out.SubQuestions {
+			clean := strings.TrimSpace(sub)
+			if clean != "" {
+				items = append(items, "\\item "+clean)
+			}
+		}
+		if len(items) > 0 {
+			return stem + "\n\\begin{enumerate}\n" + strings.Join(items, "\n") + "\n\\end{enumerate}"
+		}
+	}
+
+	return stem
 }
