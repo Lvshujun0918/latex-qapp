@@ -184,37 +184,17 @@ func buildTemplateContent(records []model.ErrorRecord) string {
 }
 
 func wrapQuestionWithIndex(raw string, index int) string {
-	content := normalizeLatexSource(raw)
+	content := raw
 	if content == "" {
 		return fmt.Sprintf("\\begin{question}[index=%d]\n（空题目）\n\\end{question}", index)
 	}
 
-	beginRe := regexp.MustCompile(`\\begin\{question\}(?:\[[^\]]*\])?`)
+	beginRe := regexp.MustCompile(`\\begin{question}(?:\[[^\]]*\])?`)
 	if beginRe.MatchString(content) {
-		return beginRe.ReplaceAllString(content, fmt.Sprintf(`\\begin{question}[index=%d]`, index))
+		return beginRe.ReplaceAllString(content, fmt.Sprintf(`\begin{question}[index=%d]`, index))
 	}
 
 	return fmt.Sprintf("\\begin{question}[index=%d]\n%s\n\\end{question}", index, content)
-}
-
-func normalizeLatexSource(raw string) string {
-	content := strings.TrimSpace(raw)
-	if content == "" {
-		return ""
-	}
-
-	// Some payloads are JSON-escaped twice and arrive as "\\begin{...}".
-	// Collapse double slashes only when followed by a command name.
-	doubleCmdRe := regexp.MustCompile(`\\\\([A-Za-z@]+)`)
-	for i := 0; i < 3; i++ {
-		next := doubleCmdRe.ReplaceAllString(content, `\\$1`)
-		if next == content {
-			break
-		}
-		content = next
-	}
-
-	return content
 }
 
 func normalizeSubjectForPDF(subject string) string {
