@@ -17,10 +17,31 @@ type CreateRecordInput struct {
 	Subject       string   `json:"subject"`
 	QuestionType  string   `json:"question_type"`
 	Title         string   `json:"title"`
-	LatexSource   string   `json:"latex_source"`
+	LatexSource   JSONText `json:"latex_source"`
 	LatexAnswer   string   `json:"latex_answer"`
 	QuestionTags  []string `json:"question_tags"`
 	MistakeReason string   `json:"mistake_reason"`
+}
+
+// JSONText accepts either a JSON string literal or a JSON object/array,
+// and persists the raw JSON text for later PDF assembly.
+type JSONText string
+
+func (t *JSONText) UnmarshalJSON(data []byte) error {
+	raw := string(data)
+	if raw == "null" {
+		*t = ""
+		return nil
+	}
+
+	var plain string
+	if err := json.Unmarshal(data, &plain); err == nil {
+		*t = JSONText(plain)
+		return nil
+	}
+
+	*t = JSONText(raw)
+	return nil
 }
 
 func NewRecordService(db *gorm.DB) *RecordService {
@@ -81,7 +102,7 @@ func (s *RecordService) Create(userID uint, input CreateRecordInput) (*model.Err
 		Subject:           input.Subject,
 		QuestionType:      input.QuestionType,
 		Title:             input.Title,
-		LatexSource:       input.LatexSource,
+		LatexSource:       string(input.LatexSource),
 		LatexAnswer:       input.LatexAnswer,
 		QuestionTagsJSON:  string(tagsBytes),
 		LatexVersion:      1,
@@ -108,7 +129,7 @@ func (s *RecordService) Update(userID uint, id uint, input CreateRecordInput) (*
 	record.Subject = input.Subject
 	record.QuestionType = input.QuestionType
 	record.Title = input.Title
-	record.LatexSource = input.LatexSource
+	record.LatexSource = string(input.LatexSource)
 	record.LatexAnswer = input.LatexAnswer
 	record.QuestionTagsJSON = string(tagsBytes)
 	record.MistakeReason = input.MistakeReason
