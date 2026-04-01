@@ -182,6 +182,10 @@ func (s *AIService) generateLatexDraftStreamWithOptions(ctx context.Context, ima
 		_ = emitEvent(&VisionStreamEvent{Stage: "latex", Error: err.Error(), AgentTrace: append([]string{}, state.Trace...)})
 		return nil, err
 	}
+	state.Meta.QuestionType = resolveQuestionType(state.Meta.QuestionType, latexOut.LatexQuestion)
+	if state.Meta.QuestionType == "解答" {
+		latexOut.LatexQuestion = normalizeEssayLatexQuestion(latexOut.LatexQuestion)
+	}
 	state.LatexOut = latexOut
 	state.RawContent = rawContent
 	if err := emitEvent(&VisionStreamEvent{
@@ -292,10 +296,7 @@ func (s *AIService) GenerateSolutionByLatex(ctx context.Context, subject string,
 
 	meta := &classifyResult{Subject: subject, QuestionType: questionType}
 	meta.Subject = normalizeSubjectLabel(meta.Subject)
-	meta.QuestionType = normalizeQuestionTypeLabel(meta.QuestionType)
-	if strings.TrimSpace(meta.QuestionType) == "未知" {
-		meta.QuestionType = inferQuestionType(latexQuestion)
-	}
+	meta.QuestionType = resolveQuestionType(meta.QuestionType, latexQuestion)
 
 	return s.solveByLatex(ctx, meta, &latexResult{LatexQuestion: latexQuestion})
 }
@@ -680,6 +681,153 @@ func inferQuestionType(latex string) string {
 	}
 }
 
+func resolveQuestionType(rawType string, latex string) string {
+	if isMultiQuestionLatex(latex) {
+		return "解答"
+	}
+
+	normalized := normalizeQuestionTypeLabel(rawType)
+	if normalized != "未知" {
+		return normalized
+	}
+
+	return inferQuestionType(latex)
+}
+
+func normalizeEssayLatexQuestion(latex string) string {
+	items := collectEssayItems(latex)
+	if len(items) == 0 {
+		items = []string{"大题题干在这里。"}
+	}
+
+	b := &strings.Builder{}
+	b.WriteString("\\begin{question}[index=20]\n")
+	b.WriteString("    大题题干在这里。\n")
+	b.WriteString("    \\begin{enumerate}\n")
+	for _, item := range items {
+		clean := strings.TrimSpace(item)
+		if clean == "" {
+			continue
+		}
+		b.WriteString("        \\item ")
+		b.WriteString(clean)
+		b.WriteString("\n")
+	}
+	b.WriteString("    \\end{enumerate}\n")
+	b.WriteString("\\end{question}")
+
+	return b.String()
+}
+
+func collectEssayItems(latex string) []string {
+	itemLocRe := regexp.MustCompile(`\\item\b`)
+	itemLocs := itemLocRe.FindAllStringIndex(latex, -1)
+	if len(itemLocs) > 0 {
+		items := make([]string, 0, len(itemLocs))
+		for i, loc := range itemLocs {
+			start := loc[1]
+			end := len(latex)
+			if i+1 < len(itemLocs) {
+				end = itemLocs[i+1][0]
+			}
+
+			segment := latex[start:end]
+			if endIdx := strings.Index(segment, `\\end{enumerate}`); endIdx >= 0 {
+				segment = segment[:endIdx]
+			}
+
+			clean := cleanEssaySegment(segment)
+			if clean != "" {
+				items = append(items, clean)
+			}
+		}
+		if len(items) > 0 {
+			return items
+		}
+	}
+
+	questionRe := regexp.MustCompile(`(?s)\\begin\{question\}(?:\[[^\]]*\])?(.*?)\\end\{question\}`)
+	questionMatches := questionRe.FindAllStringSubmatch(latex, -1)
+	if len(questionMatches) >= 2 {
+		items := make([]string, 0, len(questionMatches))
+		for _, match := range questionMatches {
+			if len(match) < 2 {
+				continue
+			}
+			clean := cleanEssaySegment(match[1])
+			if clean != "" {
+				items = append(items, clean)
+			}
+		}
+		if len(items) > 0 {
+			return items
+		}
+	}
+
+	numberedLineRe := regexp.MustCompile(`(?:^|\n)\s*(?:\d{1,2}[\.、．\)]|[（(]\d+[）)])\s*(.*)`)
+	numberedMatches := numberedLineRe.FindAllStringSubmatch(latex, -1)
+	if len(numberedMatches) >= 2 {
+		items := make([]string, 0, len(numberedMatches))
+		for _, match := range numberedMatches {
+			if len(match) < 2 {
+				continue
+			}
+			clean := cleanEssaySegment(match[1])
+			if clean != "" {
+				items = append(items, clean)
+			}
+		}
+		if len(items) > 0 {
+			return items
+		}
+	}
+
+	clean := cleanEssaySegment(latex)
+	if clean == "" {
+		return nil
+	}
+	return []string{clean}
+}
+
+func cleanEssaySegment(raw string) string {
+	text := strings.TrimSpace(raw)
+	if text == "" {
+		return ""
+	}
+
+	questionWrapRe := regexp.MustCompile(`(?s)\\begin\{question\}(?:\[[^\]]*\])?|\\end\{question\}`)
+	text = questionWrapRe.ReplaceAllString(text, "")
+
+	enumWrapRe := regexp.MustCompile(`(?s)\\begin\{enumerate\}|\\end\{enumerate\}`)
+	text = enumWrapRe.ReplaceAllString(text, "")
+
+	leadingItemRe := regexp.MustCompile(`(?m)^\s*\\item\s*`)
+	text = leadingItemRe.ReplaceAllString(text, "")
+
+	spaceRe := regexp.MustCompile(`\n\s*\n+`)
+	text = spaceRe.ReplaceAllString(text, "\n")
+
+	return strings.TrimSpace(text)
+}
+
+func isMultiQuestionLatex(latex string) bool {
+	if strings.TrimSpace(latex) == "" {
+		return false
+	}
+
+	questionRe := regexp.MustCompile(`\\begin\{question\}(?:\[[^\]]*\])?`)
+	if len(questionRe.FindAllString(latex, -1)) >= 2 {
+		return true
+	}
+
+	numberedLineRe := regexp.MustCompile(`(?:^|\n)\s*(?:\d{1,2}[\.、．\)]|[（(]\d+[）)])\s*`)
+	if len(numberedLineRe.FindAllString(latex, -1)) >= 2 {
+		return true
+	}
+
+	return false
+}
+
 func inferTags(latex string) []string {
 	typeTag := inferQuestionType(latex)
 	return []string{"exam-zh", typeTag}
@@ -710,7 +858,7 @@ func normalizeQuestionTypeLabel(input string) string {
 		return "选择"
 	case "fill_blank", "填空", "填空题":
 		return "填空"
-	case "essay", "解答", "解答题", "subjective":
+	case "essay", "解答", "解答题", "subjective", "大题":
 		return "解答"
 	case "", "unknown", "未知":
 		return "未知"
@@ -752,7 +900,7 @@ func buildExamPrompt(questionType string, subject string) string {
 			"    \\end{enumerate}\n" +
 			"\\end{question}\n" +
 			fence + "\n\n" +
-			"识别图中的题型，按照上面的格式排版图片中的内容，使用latex代码块返回，括号用\\pa来表示，不需要其他内容，不必解题。其中index为题号，若图中有题号，则优先使用，否则始终等于1；columns为选项列数，按照选项长度生成。若题面包含'多选'/'可多选'等信息请保留并按多选语义排版。"
+			"识别图中的题型，按照上面的格式排版图片中的内容，使用latex代码块返回，括号用\\pa来表示，不需要其他内容，不必解题。其中index为题号，若图中有题号，则优先使用，否则始终等于1；columns为选项列数，按照选项长度生成。若题面包含'多选'/'可多选'等信息请保留并按多选语义排版。若题型为解答/大题，必须只输出一个\\begin{question}[index=20]...\\end{question}，并在其中使用\\begin{enumerate}...\\end{enumerate}组织小问，禁止输出多个question块。"
 
 	meta := fmt.Sprintf("\n\n已知分类结果：subject=%s, question_type=%s。请优先按该题型输出。", subject, questionType)
 	return base + meta
