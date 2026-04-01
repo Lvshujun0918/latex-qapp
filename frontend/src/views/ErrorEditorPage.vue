@@ -187,8 +187,8 @@ function mapQuestionTypeLabel(type: string) {
   if (['fill_blank', '填空', '填空题'].includes(value)) {
     return '填空题';
   }
-  if (['essay', '解答', '解答题', 'subjective'].includes(value)) {
-    return '解答题';
+  if (['essay', '解答', '解答题', 'subjective', '大题'].includes(value)) {
+    return '大题';
   }
   return '未知题型';
 }

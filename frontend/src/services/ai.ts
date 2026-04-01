@@ -101,7 +101,7 @@ export async function generateLatexDraftByVisionStream(
 
       if (evt.stage === 'final' || evt.done) {
         const subject = normalizeSubjectLabel(evt.subject);
-        const questionType = normalizeQuestionTypeLabel(evt.question_type ?? inferQuestionType(evt.latex_question ?? ''));
+        const questionType = normalizeQuestionTypeLabel(evt.question_type);
         finalDraft = {
           latexQuestion: evt.latex_question ?? '',
           latexAnswer: evt.latex_answer ?? '',
@@ -213,7 +213,7 @@ export function clearVisionDraftStorage() {
 function normalizeDraftFromPayload(payload: any): VisionLatexDraft {
   const rawContent = typeof payload?.raw_content === 'string' ? payload.raw_content : '';
   const parsedLatex = payload?.latex_question || extractLatexCode(rawContent);
-  const parsedType = normalizeQuestionTypeLabel(payload?.question_type || inferQuestionType(parsedLatex));
+  const parsedType = normalizeQuestionTypeLabel(payload?.question_type);
   return {
     latexQuestion: parsedLatex ?? '',
     latexAnswer: payload?.latex_answer || '',
@@ -282,7 +282,7 @@ function normalizeQuestionTypeLabel(input?: string): string {
   const value = String(input || '').trim().toLowerCase();
   if (['choice', '选择', '选择题', 'single_choice', 'multiple_choice'].includes(value)) return '选择';
   if (['fill_blank', '填空', '填空题'].includes(value)) return '填空';
-  if (['essay', '解答', '解答题', 'subjective'].includes(value)) return '解答';
+  if (['essay', '解答', '解答题', 'subjective', '大题'].includes(value)) return '解答';
   if (!value || value === 'unknown' || value === '未知') return '未知';
   return String(input || '未知');
 }
