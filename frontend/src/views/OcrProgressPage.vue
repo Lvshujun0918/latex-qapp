@@ -155,7 +155,7 @@ function handleStreamEvent(evt: VisionStreamEvent) {
       if (evt.subject) stageMessages.classify = `识别到: ${evt.subject}${evt.question_type ? ' · ' + evt.question_type : ''}`;
       break;
     case 'latex':
-      if (evt.latex_question) stageMessages.latex = '已提取题目LaTeX';
+      if (evt.question_json) stageMessages.latex = '已提取题目结构化片段';
       break;
     case 'tags':
       if (evt.tags && evt.tags.length) stageMessages.tags = `已生成 ${evt.tags.length} 个标签`;
@@ -170,13 +170,16 @@ function handleStreamEvent(evt: VisionStreamEvent) {
           question_type: evt.question_type,
           title: evt.title,
           tags: evt.tags,
-          latex_question: evt.latex_question,
+          question_json: evt.question_json,
+          latex_source: evt.latex_source,
           latex_answer: evt.latex_answer,
           latex_solution: evt.latex_solution,
         };
         // 保存到本地存储，以便编辑页面使用
         const draft: VisionLatexDraft = {
-          latexQuestion: evt.latex_question || '',
+          questionJson: evt.question_json,
+          latexSource: evt.latex_source || '',
+          latexQuestion: assembleLatexFromQuestionJson(evt.question_json),
           latexAnswer: evt.latex_answer || '',
           latexSolution: evt.latex_solution || '',
           tags: evt.tags || [],
@@ -241,6 +244,27 @@ function formatQuestionType(questionType?: string) {
   if (['fill_blank', '填空', '填空题'].includes(value)) return '填空';
   if (['essay', '解答', '解答题', 'subjective'].includes(value)) return '解答';
   return questionType || '未知';
+}
+
+function assembleLatexFromQuestionJson(questionJson: any): string {
+  if (!questionJson || typeof questionJson !== 'object') {
+    return '';
+  }
+  const stem = String(questionJson.stem ?? '').trim();
+  if (!stem) {
+    return '';
+  }
+
+  const questionType = String(questionJson.question_type ?? '').trim();
+  if (questionType === '选择' && Array.isArray(questionJson.options) && questionJson.options.length > 0) {
+    const body = questionJson.options.map((opt: any) => `\\item ${String(opt ?? '').trim()}`).join('\n');
+    return `${stem}\n\\begin{choices}\n${body}\n\\end{choices}`;
+  }
+  if (questionType === '解答' && Array.isArray(questionJson.sub_questions) && questionJson.sub_questions.length > 0) {
+    const body = questionJson.sub_questions.map((sub: any) => `\\item ${String(sub ?? '').trim()}`).join('\n');
+    return `${stem}\n\\begin{enumerate}\n${body}\n\\end{enumerate}`;
+  }
+  return stem;
 }
 </script>
 

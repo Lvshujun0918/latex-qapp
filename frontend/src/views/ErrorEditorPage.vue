@@ -19,7 +19,7 @@
       </CardHeader>
       <CardContent class="editor-content">
         <h4>题目（LaTeX）</h4>
-        <LatexView :source="latexSource" class="latex-panel" />
+        <LatexView :source="latexPreview" class="latex-panel" />
 
         <h4>题目标签</h4>
         <div class="tag-wrap">
@@ -77,6 +77,7 @@ const title = ref('');
 const subject = ref('未知');
 const questionType = ref('未知');
 const latexSource = ref('');
+const latexPreview = ref('');
 const latexAnswer = ref('');
 const latexSolution = ref('');
 const questionTags = ref<string[]>([]);
@@ -98,7 +99,8 @@ onMounted(() => {
   title.value = draft.title ?? title.value;
   subject.value = draft.subject ?? subject.value;
   questionType.value = draft.questionType ?? questionType.value;
-  latexSource.value = draft.latexQuestion;
+  latexSource.value = draft.latexSource || '';
+  latexPreview.value = draft.latexQuestion || assembleLatexFromQuestionJson(draft.questionJson);
   latexAnswer.value = draft.latexAnswer;
   latexSolution.value = draft.latexSolution ?? '';
   questionTags.value = draft.tags;
@@ -116,7 +118,7 @@ async function generateSolve() {
     solvingStage.value = '准备解答...';
     const solved = await generateSolutionByLatexStream(
       {
-        latexQuestion: latexSource.value,
+        latexQuestion: latexPreview.value,
         questionType: questionType.value,
         subject: subject.value,
       },
@@ -200,6 +202,30 @@ function mapSubjectLabel(value: string) {
   if (subjectValue === 'chemistry' || subjectValue === '化学') return '化学';
   if (subjectValue === 'biology' || subjectValue === '生物') return '生物';
   return value || '未知';
+}
+
+function assembleLatexFromQuestionJson(questionJson: any): string {
+  if (!questionJson || typeof questionJson !== 'object') {
+    return '';
+  }
+
+  const stem = String(questionJson.stem ?? '').trim();
+  if (!stem) {
+    return '';
+  }
+
+  const type = String(questionJson.question_type ?? '').trim();
+  if (type === '选择' && Array.isArray(questionJson.options) && questionJson.options.length > 0) {
+    const body = questionJson.options.map((opt: any) => `\\item ${String(opt ?? '').trim()}`).join('\n');
+    return `${stem}\n\\begin{choices}\n${body}\n\\end{choices}`;
+  }
+
+  if (type === '解答' && Array.isArray(questionJson.sub_questions) && questionJson.sub_questions.length > 0) {
+    const body = questionJson.sub_questions.map((sub: any) => `\\item ${String(sub ?? '').trim()}`).join('\n');
+    return `${stem}\n\\begin{enumerate}\n${body}\n\\end{enumerate}`;
+  }
+
+  return stem;
 }
 
 function goBack() {

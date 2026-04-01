@@ -102,11 +102,14 @@ export async function generateLatexDraftByVisionStream(
       if (evt.stage === 'final' || evt.done) {
         const subject = normalizeSubjectLabel(evt.subject);
         const questionType = normalizeQuestionTypeLabel(evt.question_type);
+        const latexQuestion = assembleLatexFromQuestionJson(evt.question_json);
         finalDraft = {
-          latexQuestion: evt.latex_question ?? '',
+          questionJson: evt.question_json,
+          latexSource: String(evt.latex_source ?? ''),
+          latexQuestion,
           latexAnswer: evt.latex_answer ?? '',
           latexSolution: evt.latex_solution ?? '',
-          tags: evt.tags ?? inferTags(evt.latex_question ?? ''),
+          tags: evt.tags ?? inferTags(latexQuestion),
           subject,
           title: evt.title ?? mapTitleFromType(questionType),
           questionType,
@@ -211,10 +214,12 @@ export function clearVisionDraftStorage() {
 }
 
 function normalizeDraftFromPayload(payload: any): VisionLatexDraft {
-  const rawContent = typeof payload?.raw_content === 'string' ? payload.raw_content : '';
-  const parsedLatex = payload?.latex_question || extractLatexCode(rawContent);
+  const questionJson = payload?.question_json;
+  const parsedLatex = assembleLatexFromQuestionJson(questionJson);
   const parsedType = normalizeQuestionTypeLabel(payload?.question_type);
   return {
+    questionJson,
+    latexSource: String(payload?.latex_source ?? ''),
     latexQuestion: parsedLatex ?? '',
     latexAnswer: payload?.latex_answer || '',
     latexSolution: payload?.latex_solution || '',
@@ -223,6 +228,40 @@ function normalizeDraftFromPayload(payload: any): VisionLatexDraft {
     title: payload?.title ?? mapTitleFromType(parsedType),
     questionType: parsedType,
   };
+}
+
+function assembleLatexFromQuestionJson(questionJson: any): string {
+  if (!questionJson || typeof questionJson !== 'object') {
+    return '';
+  }
+
+  const questionType = normalizeQuestionTypeLabel(questionJson.question_type);
+  const stem = String(questionJson.stem ?? '').trim();
+  if (!stem) {
+    return '';
+  }
+
+  if (questionType === '选择') {
+    const options = Array.isArray(questionJson.options)
+      ? questionJson.options.map((it: any) => String(it ?? '').trim()).filter(Boolean)
+      : [];
+    if (!options.length) {
+      return stem;
+    }
+    return `${stem}\n\\begin{choices}\n${options.map((opt: string) => `\\item ${opt}`).join('\n')}\n\\end{choices}`;
+  }
+
+  if (questionType === '解答') {
+    const subQuestions = Array.isArray(questionJson.sub_questions)
+      ? questionJson.sub_questions.map((it: any) => String(it ?? '').trim()).filter(Boolean)
+      : [];
+    if (!subQuestions.length) {
+      return stem;
+    }
+    return `${stem}\n\\begin{enumerate}\n${subQuestions.map((sq: string) => `\\item ${sq}`).join('\n')}\n\\end{enumerate}`;
+  }
+
+  return stem;
 }
 
 function extractLatexCode(text: string): string {

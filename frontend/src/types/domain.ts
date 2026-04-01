@@ -30,6 +30,14 @@ export interface AIAnalysisResult {
 }
 
 export interface VisionLatexDraft {
+  questionJson?: {
+    question_type?: string;
+    stem: string;
+    options?: string[];
+    sub_questions?: string[];
+    latex_answer?: string;
+  };
+  latexSource: string;
   latexQuestion: string;
   latexAnswer: string;
   latexSolution?: string;
@@ -44,7 +52,14 @@ export interface VisionStreamEvent {
   subject?: string;
   title?: string;
   question_type?: string;
-  latex_question?: string;
+  question_json?: {
+    question_type?: string;
+    stem: string;
+    options?: string[];
+    sub_questions?: string[];
+    latex_answer?: string;
+  };
+  latex_source?: string;
   latex_answer?: string;
   latex_solution?: string;
   tags?: string[];
