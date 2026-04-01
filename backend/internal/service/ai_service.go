@@ -40,30 +40,32 @@ type agentPipelineState struct {
 }
 
 type VisionResult struct {
-	LatexQuestion string   `json:"latex_question"`
-	LatexAnswer   string   `json:"latex_answer"`
-	LatexSolution string   `json:"latex_solution"`
-	Tags          []string `json:"tags"`
-	Subject       string   `json:"subject"`
-	Title         string   `json:"title"`
-	QuestionType  string   `json:"question_type"`
-	RawContent    string   `json:"raw_content"`
-	AgentTrace    []string `json:"agent_trace"`
+	QuestionJSON  *LatexOutput `json:"question_json"`
+	LatexSource   string       `json:"latex_source"`
+	LatexAnswer   string       `json:"latex_answer"`
+	LatexSolution string       `json:"latex_solution"`
+	Tags          []string     `json:"tags"`
+	Subject       string       `json:"subject"`
+	Title         string       `json:"title"`
+	QuestionType  string       `json:"question_type"`
+	RawContent    string       `json:"raw_content"`
+	AgentTrace    []string     `json:"agent_trace"`
 }
 
 type VisionStreamEvent struct {
-	Stage         string   `json:"stage"`
-	Subject       string   `json:"subject,omitempty"`
-	Title         string   `json:"title,omitempty"`
-	QuestionType  string   `json:"question_type,omitempty"`
-	LatexQuestion string   `json:"latex_question,omitempty"`
-	LatexAnswer   string   `json:"latex_answer,omitempty"`
-	LatexSolution string   `json:"latex_solution,omitempty"`
-	Tags          []string `json:"tags,omitempty"`
-	RawContent    string   `json:"raw_content,omitempty"`
-	AgentTrace    []string `json:"agent_trace,omitempty"`
-	Done          bool     `json:"done,omitempty"`
-	Error         string   `json:"error,omitempty"`
+	Stage         string       `json:"stage"`
+	Subject       string       `json:"subject,omitempty"`
+	Title         string       `json:"title,omitempty"`
+	QuestionType  string       `json:"question_type,omitempty"`
+	QuestionJSON  *LatexOutput `json:"question_json,omitempty"`
+	LatexSource   string       `json:"latex_source,omitempty"`
+	LatexAnswer   string       `json:"latex_answer,omitempty"`
+	LatexSolution string       `json:"latex_solution,omitempty"`
+	Tags          []string     `json:"tags,omitempty"`
+	RawContent    string       `json:"raw_content,omitempty"`
+	AgentTrace    []string     `json:"agent_trace,omitempty"`
+	Done          bool         `json:"done,omitempty"`
+	Error         string       `json:"error,omitempty"`
 }
 
 type VisionRunOptions struct {
@@ -133,7 +135,6 @@ func (s *AIService) generateLatexDraftStreamWithOptions(ctx context.Context, ima
 		return nil, errors.New("QWEN_API_KEY is empty")
 	}
 
-	state := &agentPipelineState{ImageBase64: imageBase64, Trace: []string{}}
 	emitEvent := func(evt *VisionStreamEvent) error {
 		if emit == nil {
 			return nil
@@ -141,148 +142,92 @@ func (s *AIService) generateLatexDraftStreamWithOptions(ctx context.Context, ima
 		return emit(evt)
 	}
 
-	if err := ctx.Err(); err != nil {
-		return nil, err
-	}
-
-	state.Trace = append(state.Trace, "step1: classify subject and question type")
-	meta, err := s.classifyImageMeta(ctx, state.ImageBase64)
+	// Build Graph
+	graph, err := s.BuildVisionGraph(ctx, opts.IncludeSolution)
 	if err != nil {
-		_ = emitEvent(&VisionStreamEvent{Stage: "classify", Error: err.Error(), AgentTrace: append([]string{}, state.Trace...)})
-		return nil, err
-	}
-	meta.Subject = normalizeSubjectLabel(meta.Subject)
-	meta.QuestionType = normalizeQuestionTypeLabel(meta.QuestionType)
-	state.Meta = meta
-	if err := emitEvent(&VisionStreamEvent{
-		Stage:        "classify",
-		Subject:      meta.Subject,
-		Title:        meta.Title,
-		QuestionType: meta.QuestionType,
-		AgentTrace:   append([]string{}, state.Trace...),
-	}); err != nil {
+		_ = emitEvent(&VisionStreamEvent{Stage: "error", Error: err.Error(), Done: true})
 		return nil, err
 	}
 
-	if err := ctx.Err(); err != nil {
-		return nil, err
-	}
-
-	state.Trace = append(state.Trace, "step2: render exam-zh latex by question type")
-	latexOut, rawContent, err := s.generateLatexByType(ctx, state.ImageBase64, state.Meta)
+	// Compile Graph to Runnable
+	runnable, err := graph.Compile(ctx)
 	if err != nil {
-		_ = emitEvent(&VisionStreamEvent{Stage: "latex", Error: err.Error(), AgentTrace: append([]string{}, state.Trace...)})
-		return nil, err
-	}
-	if strings.TrimSpace(latexOut.LatexQuestion) == "" {
-		latexOut.LatexQuestion = extractLatexBlock(rawContent)
-	}
-	if strings.TrimSpace(latexOut.LatexQuestion) == "" {
-		err = errors.New("empty latex_question from model")
-		_ = emitEvent(&VisionStreamEvent{Stage: "latex", Error: err.Error(), AgentTrace: append([]string{}, state.Trace...)})
-		return nil, err
-	}
-	state.Meta.QuestionType = resolveQuestionType(state.Meta.QuestionType, latexOut.LatexQuestion)
-	if state.Meta.QuestionType == "解答" {
-		latexOut.LatexQuestion = normalizeEssayLatexQuestion(latexOut.LatexQuestion)
-	}
-	state.LatexOut = latexOut
-	state.RawContent = rawContent
-	if err := emitEvent(&VisionStreamEvent{
-		Stage:         "latex",
-		Subject:       state.Meta.Subject,
-		Title:         state.Meta.Title,
-		QuestionType:  state.Meta.QuestionType,
-		LatexQuestion: latexOut.LatexQuestion,
-		LatexAnswer:   latexOut.LatexAnswer,
-		RawContent:    rawContent,
-		AgentTrace:    append([]string{}, state.Trace...),
-	}); err != nil {
+		_ = emitEvent(&VisionStreamEvent{Stage: "error", Error: err.Error(), Done: true})
 		return nil, err
 	}
 
-	if err := ctx.Err(); err != nil {
-		return nil, err
+	// Create initial state
+	initialState := &PipelineState{
+		ImageBase64: imageBase64,
+		Trace:       []string{},
 	}
 
-	state.Trace = append(state.Trace, "step4: generate tags from latex and solution")
-	tagOut, err := s.generateTags(ctx, state.Meta, state.LatexOut, state.SolveOut)
+	// Run Graph
+	result, err := runnable.Invoke(ctx, initialState)
 	if err != nil {
-		_ = emitEvent(&VisionStreamEvent{Stage: "tags", Error: err.Error(), AgentTrace: append([]string{}, state.Trace...)})
-		return nil, err
-	}
-	if len(tagOut.Tags) == 0 {
-		tagOut.Tags = inferTags(state.LatexOut.LatexQuestion)
-	}
-	state.TagOut = tagOut
-	if err := emitEvent(&VisionStreamEvent{
-		Stage:      "tags",
-		Tags:       tagOut.Tags,
-		AgentTrace: append([]string{}, state.Trace...),
-	}); err != nil {
+		_ = emitEvent(&VisionStreamEvent{Stage: "error", Error: err.Error(), Done: true})
 		return nil, err
 	}
 
-	if opts.IncludeSolution {
-		if err := ctx.Err(); err != nil {
-			return nil, err
-		}
+	// Emit streaming events at key stages
+	if result.Subject != "" {
+		_ = emitEvent(&VisionStreamEvent{
+			Stage:        "classify",
+			Subject:      result.Subject,
+			Title:        result.Title,
+			QuestionType: result.QuestionType,
+			AgentTrace:   result.AgentTrace,
+		})
+	}
 
-		state.Trace = append(state.Trace, "step5: solve the latex question")
-		solveOut, err := s.solveByLatex(ctx, state.Meta, state.LatexOut)
-		if err != nil {
-			_ = emitEvent(&VisionStreamEvent{Stage: "solve", Error: err.Error(), AgentTrace: append([]string{}, state.Trace...)})
-			return nil, err
-		}
-		state.SolveOut = solveOut
-		if err := emitEvent(&VisionStreamEvent{
+	if result.QuestionJSON != nil {
+		_ = emitEvent(&VisionStreamEvent{
+			Stage:        "latex",
+			Subject:      result.Subject,
+			Title:        result.Title,
+			QuestionType: result.QuestionType,
+			QuestionJSON: result.QuestionJSON,
+			LatexSource:  result.LatexSource,
+			LatexAnswer:  result.LatexAnswer,
+			RawContent:   result.RawContent,
+			AgentTrace:   result.AgentTrace,
+		})
+	}
+
+	if result.Tags != nil {
+		_ = emitEvent(&VisionStreamEvent{
+			Stage:      "tags",
+			Tags:       result.Tags,
+			AgentTrace: result.AgentTrace,
+		})
+	}
+
+	if opts.IncludeSolution && result.LatexSolution != "" {
+		_ = emitEvent(&VisionStreamEvent{
 			Stage:         "solve",
-			LatexAnswer:   solveOut.LatexAnswer,
-			LatexSolution: solveOut.LatexSolution,
-			AgentTrace:    append([]string{}, state.Trace...),
-		}); err != nil {
-			return nil, err
-		}
+			LatexAnswer:   result.LatexAnswer,
+			LatexSolution: result.LatexSolution,
+			AgentTrace:    result.AgentTrace,
+		})
 	}
 
-	finalAnswer := strings.TrimSpace(state.LatexOut.LatexAnswer)
-	finalSolution := ""
-	if state.SolveOut != nil {
-		if strings.TrimSpace(state.SolveOut.LatexAnswer) != "" {
-			finalAnswer = strings.TrimSpace(state.SolveOut.LatexAnswer)
-		}
-		finalSolution = strings.TrimSpace(state.SolveOut.LatexSolution)
-	}
-
-	final := &VisionResult{
-		LatexQuestion: state.LatexOut.LatexQuestion,
-		LatexAnswer:   finalAnswer,
-		LatexSolution: finalSolution,
-		Tags:          state.TagOut.Tags,
-		Subject:       state.Meta.Subject,
-		Title:         state.Meta.Title,
-		QuestionType:  state.Meta.QuestionType,
-		RawContent:    state.RawContent,
-		AgentTrace:    append([]string{}, state.Trace...),
-	}
-
-	if err := emitEvent(&VisionStreamEvent{
+	// Emit final event
+	_ = emitEvent(&VisionStreamEvent{
 		Stage:         "final",
-		Subject:       final.Subject,
-		Title:         final.Title,
-		QuestionType:  final.QuestionType,
-		LatexQuestion: final.LatexQuestion,
-		LatexAnswer:   final.LatexAnswer,
-		LatexSolution: final.LatexSolution,
-		Tags:          final.Tags,
-		RawContent:    final.RawContent,
-		AgentTrace:    final.AgentTrace,
+		Subject:       result.Subject,
+		Title:         result.Title,
+		QuestionType:  result.QuestionType,
+		QuestionJSON:  result.QuestionJSON,
+		LatexSource:   result.LatexSource,
+		LatexAnswer:   result.LatexAnswer,
+		LatexSolution: result.LatexSolution,
+		Tags:          result.Tags,
+		RawContent:    result.RawContent,
+		AgentTrace:    result.AgentTrace,
 		Done:          true,
-	}); err != nil {
-		return nil, err
-	}
+	})
 
-	return final, nil
+	return result, nil
 }
 
 func (s *AIService) GenerateSolutionByLatex(ctx context.Context, subject string, questionType string, latexQuestion string) (*solveResult, error) {
@@ -572,12 +517,32 @@ func classifyToolInfo() *schema.ToolInfo {
 func latexToolInfo() *schema.ToolInfo {
 	return &schema.ToolInfo{
 		Name: "submit_exam_latex",
-		Desc: "返回符合 exam-zh 的 latex_question 和 latex_answer。",
+		Desc: "返回结构化题目JSON片段：题干、选项、小问（latex片段），不要返回完整题目latex。",
 		ParamsOneOf: schema.NewParamsOneOfByParams(map[string]*schema.ParameterInfo{
-			"latex_question": {
+			"question_type": {
 				Type:     schema.String,
-				Desc:     "latex formatted question content",
+				Desc:     "题型，必须为中文标签",
+				Enum:     []string{"选择", "填空", "解答", "未知"},
 				Required: true,
+			},
+			"stem": {
+				Type:     schema.String,
+				Desc:     "题干latex片段，不含question环境",
+				Required: true,
+			},
+			"options": {
+				Type: schema.Array,
+				ElemInfo: &schema.ParameterInfo{
+					Type: schema.String,
+				},
+				Desc: "选择题选项latex片段数组，例如 [\"A. ...\", \"B. ...\"]",
+			},
+			"sub_questions": {
+				Type: schema.Array,
+				ElemInfo: &schema.ParameterInfo{
+					Type: schema.String,
+				},
+				Desc: "解答题小问latex片段数组",
 			},
 			"latex_answer": {
 				Type: schema.String,
@@ -694,121 +659,11 @@ func resolveQuestionType(rawType string, latex string) string {
 	return inferQuestionType(latex)
 }
 
-func normalizeEssayLatexQuestion(latex string) string {
-	items := collectEssayItems(latex)
-	if len(items) == 0 {
-		items = []string{"大题题干在这里。"}
-	}
-
-	b := &strings.Builder{}
-	b.WriteString("\\begin{question}[index=20]\n")
-	b.WriteString("    大题题干在这里。\n")
-	b.WriteString("    \\begin{enumerate}\n")
-	for _, item := range items {
-		clean := strings.TrimSpace(item)
-		if clean == "" {
-			continue
-		}
-		b.WriteString("        \\item ")
-		b.WriteString(clean)
-		b.WriteString("\n")
-	}
-	b.WriteString("    \\end{enumerate}\n")
-	b.WriteString("\\end{question}")
-
-	return b.String()
-}
-
-func collectEssayItems(latex string) []string {
-	itemLocRe := regexp.MustCompile(`\\item\b`)
-	itemLocs := itemLocRe.FindAllStringIndex(latex, -1)
-	if len(itemLocs) > 0 {
-		items := make([]string, 0, len(itemLocs))
-		for i, loc := range itemLocs {
-			start := loc[1]
-			end := len(latex)
-			if i+1 < len(itemLocs) {
-				end = itemLocs[i+1][0]
-			}
-
-			segment := latex[start:end]
-			if endIdx := strings.Index(segment, `\\end{enumerate}`); endIdx >= 0 {
-				segment = segment[:endIdx]
-			}
-
-			clean := cleanEssaySegment(segment)
-			if clean != "" {
-				items = append(items, clean)
-			}
-		}
-		if len(items) > 0 {
-			return items
-		}
-	}
-
-	questionRe := regexp.MustCompile(`(?s)\\begin\{question\}(?:\[[^\]]*\])?(.*?)\\end\{question\}`)
-	questionMatches := questionRe.FindAllStringSubmatch(latex, -1)
-	if len(questionMatches) >= 2 {
-		items := make([]string, 0, len(questionMatches))
-		for _, match := range questionMatches {
-			if len(match) < 2 {
-				continue
-			}
-			clean := cleanEssaySegment(match[1])
-			if clean != "" {
-				items = append(items, clean)
-			}
-		}
-		if len(items) > 0 {
-			return items
-		}
-	}
-
-	numberedLineRe := regexp.MustCompile(`(?:^|\n)\s*(?:\d{1,2}[\.、．\)]|[（(]\d+[）)])\s*(.*)`)
-	numberedMatches := numberedLineRe.FindAllStringSubmatch(latex, -1)
-	if len(numberedMatches) >= 2 {
-		items := make([]string, 0, len(numberedMatches))
-		for _, match := range numberedMatches {
-			if len(match) < 2 {
-				continue
-			}
-			clean := cleanEssaySegment(match[1])
-			if clean != "" {
-				items = append(items, clean)
-			}
-		}
-		if len(items) > 0 {
-			return items
-		}
-	}
-
-	clean := cleanEssaySegment(latex)
-	if clean == "" {
-		return nil
-	}
-	return []string{clean}
-}
-
-func cleanEssaySegment(raw string) string {
-	text := strings.TrimSpace(raw)
-	if text == "" {
-		return ""
-	}
-
-	questionWrapRe := regexp.MustCompile(`(?s)\\begin\{question\}(?:\[[^\]]*\])?|\\end\{question\}`)
-	text = questionWrapRe.ReplaceAllString(text, "")
-
-	enumWrapRe := regexp.MustCompile(`(?s)\\begin\{enumerate\}|\\end\{enumerate\}`)
-	text = enumWrapRe.ReplaceAllString(text, "")
-
-	leadingItemRe := regexp.MustCompile(`(?m)^\s*\\item\s*`)
-	text = leadingItemRe.ReplaceAllString(text, "")
-
-	spaceRe := regexp.MustCompile(`\n\s*\n+`)
-	text = spaceRe.ReplaceAllString(text, "\n")
-
-	return strings.TrimSpace(text)
-}
+// ============= DELETED ==============
+// normalizeEssayLatexQuestion was deleted - now handled by JSON Schema output
+// collectEssayItems was deleted - now handled by JSON Schema output
+// cleanEssaySegment was deleted - now handled by JSON Schema output
+// ====================================
 
 func isMultiQuestionLatex(latex string) bool {
 	if strings.TrimSpace(latex) == "" {
@@ -900,7 +755,7 @@ func buildExamPrompt(questionType string, subject string) string {
 			"    \\end{enumerate}\n" +
 			"\\end{question}\n" +
 			fence + "\n\n" +
-			"识别图中的题型，按照上面的格式排版图片中的内容，使用latex代码块返回，括号用\\pa来表示，不需要其他内容，不必解题。其中index为题号，若图中有题号，则优先使用，否则始终等于1；columns为选项列数，按照选项长度生成。若题面包含'多选'/'可多选'等信息请保留并按多选语义排版。若题型为解答/大题，必须只输出一个\\begin{question}[index=20]...\\end{question}，并在其中使用\\begin{enumerate}...\\end{enumerate}组织小问，禁止输出多个question块。"
+			"识别图中的题型，必须通过 toolcall 返回结构化JSON片段，不要输出完整question环境。要求：stem 为题干latex片段；选择题把每个选项放到 options 数组；解答题把每个小问放到 sub_questions 数组；fillin/公式等保留latex片段本身。"
 
 	meta := fmt.Sprintf("\n\n已知分类结果：subject=%s, question_type=%s。请优先按该题型输出。", subject, questionType)
 	return base + meta
