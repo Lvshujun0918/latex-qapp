@@ -31,12 +31,21 @@ type pdfExportRequest struct {
 }
 
 type pdfJobDetail struct {
-	JobID         string `json:"jobId"`
-	Status        string `json:"status"`
-	Progress      int    `json:"progress"`
-	SelectedCount int    `json:"selected_count"`
-	PDFFileURL    string `json:"pdf_file_url"`
-	Message       string `json:"message"`
+	JobID         string           `json:"jobId"`
+	Status        string           `json:"status"`
+	Progress      int              `json:"progress"`
+	SelectedCount int              `json:"selected_count"`
+	PDFFileURL    string           `json:"pdf_file_url"`
+	Message       string           `json:"message"`
+	Questions     []pdfJobQuestion `json:"questions"`
+}
+
+type pdfJobQuestion struct {
+	ID           uint   `json:"id"`
+	Index        int    `json:"index"`
+	Title        string `json:"title"`
+	Subject      string `json:"subject"`
+	QuestionType string `json:"question_type"`
 }
 
 func NewPDFHandler(recordService *service.RecordService) *PDFHandler {
@@ -152,6 +161,7 @@ func (h *PDFHandler) Export(c *gin.Context) {
 		SelectedCount: len(records),
 		PDFFileURL:    fmt.Sprintf("/public/pdfs/%s/paper.pdf", jobID),
 		Message:       "pdf generated successfully",
+		Questions:     buildJobQuestions(records),
 	}
 
 	h.mu.Lock()
@@ -181,6 +191,26 @@ func buildTemplateContent(records []model.ErrorRecord) string {
 		blocks = append(blocks, wrapQuestionWithIndex(item.LatexSource, i+1))
 	}
 	return strings.Join(blocks, "\n\n")
+}
+
+func buildJobQuestions(records []model.ErrorRecord) []pdfJobQuestion {
+	questions := make([]pdfJobQuestion, 0, len(records))
+	for i, item := range records {
+		title := strings.TrimSpace(item.Title)
+		if title == "" {
+			title = fmt.Sprintf("第 %d 题", i+1)
+		}
+
+		questions = append(questions, pdfJobQuestion{
+			ID:           item.ID,
+			Index:        i + 1,
+			Title:        title,
+			Subject:      strings.TrimSpace(item.Subject),
+			QuestionType: strings.TrimSpace(item.QuestionType),
+		})
+	}
+
+	return questions
 }
 
 func wrapQuestionWithIndex(raw string, index int) string {
