@@ -1,7 +1,6 @@
 package service
 
 import (
-	"strings"
 	"testing"
 )
 
@@ -36,20 +35,6 @@ func TestIsMultiQuestionLatex_NumberedLines(t *testing.T) {
 	}
 }
 
-func TestNormalizeEssayLatexQuestion_AlwaysSingleQuestionWithEnumerate(t *testing.T) {
-	latex := "\\begin{question}[index=1]\\n第一问\\n\\end{question}\\n\\begin{question}[index=2]\\n第二问\\n\\end{question}"
-	got := normalizeEssayLatexQuestion(latex)
-
-	if strings.Count(got, "\\begin{question}") != 1 {
-		t.Fatalf("expected exactly one question block, got: %s", got)
-	}
-	if !strings.Contains(got, "\\begin{question}[index=20]") {
-		t.Fatalf("expected normalized index=20 format, got: %s", got)
-	}
-	if !strings.Contains(got, "\\begin{enumerate}") || !strings.Contains(got, "\\end{enumerate}") {
-		t.Fatalf("expected enumerate wrapper, got: %s", got)
-	}
-	if strings.Count(got, "\\item ") < 2 {
-		t.Fatalf("expected at least 2 list items from multi-question input, got: %s", got)
-	}
-}
+// TestNormalizeEssayLatexQuestion_AlwaysSingleQuestionWithEnumerate was removed
+// This functionality is now handled by JSON Schema output from the Graph pipeline.
+// The Graph nodes ensure that multi-question inputs are properly formatted as structured JSON.

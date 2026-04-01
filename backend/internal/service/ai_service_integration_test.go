@@ -48,8 +48,8 @@ func TestAIService_GenerateLatexDraft_FromLocalImage_Integration(t *testing.T) {
 		if evt.Subject != "" || evt.QuestionType != "" || evt.Title != "" {
 			t.Logf("stream meta: subject=%s questionType=%s title=%s", evt.Subject, evt.QuestionType, evt.Title)
 		}
-		if evt.LatexQuestion != "" {
-			t.Logf("stream latex_question=%s", evt.LatexQuestion)
+		if evt.QuestionJSON != nil {
+			t.Logf("stream question_json=%+v", *evt.QuestionJSON)
 		}
 		if evt.LatexAnswer != "" {
 			t.Logf("stream latex_answer=%s", evt.LatexAnswer)
@@ -68,8 +68,11 @@ func TestAIService_GenerateLatexDraft_FromLocalImage_Integration(t *testing.T) {
 	if result == nil {
 		t.Fatal("GenerateLatexDraftStream returned nil result")
 	}
-	if strings.TrimSpace(result.LatexQuestion) == "" {
-		t.Fatalf("expected non-empty latex_question, got empty; trace=%v", result.AgentTrace)
+	if result.QuestionJSON == nil || strings.TrimSpace(result.QuestionJSON.Stem) == "" {
+		t.Fatalf("expected non-empty question_json.stem, got empty; trace=%v", result.AgentTrace)
+	}
+	if strings.TrimSpace(result.LatexSource) == "" {
+		t.Fatalf("expected non-empty latex_source json, got empty; trace=%v", result.AgentTrace)
 	}
 	if len(result.Tags) == 0 {
 		t.Fatalf("expected non-empty tags, got empty; trace=%v", result.AgentTrace)
@@ -77,7 +80,8 @@ func TestAIService_GenerateLatexDraft_FromLocalImage_Integration(t *testing.T) {
 
 	t.Logf("subject=%s questionType=%s title=%s", result.Subject, result.QuestionType, result.Title)
 	t.Logf("tags=%v", result.Tags)
-	t.Logf("question=%v", result.LatexQuestion)
+	t.Logf("question_json=%+v", result.QuestionJSON)
+	t.Logf("latex_source=%v", result.LatexSource)
 	t.Logf("answer=%v", result.LatexAnswer)
 	t.Logf("sulution=%v", result.LatexSolution)
 	t.Logf("agentTrace=%v", result.AgentTrace)
