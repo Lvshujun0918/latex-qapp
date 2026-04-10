@@ -70,15 +70,17 @@
 
 <script setup lang="ts">
 import { ref, onMounted, reactive } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { AlertCircle, Check, Loader2, ScanSearch, Sparkles, Tags, FunctionSquare, BrainCircuit } from 'lucide-vue-next';
 import { useTheme } from '@/composables/useTheme';
 import { generateLatexDraftByVisionStream } from '@/services/ai';
 import { saveVisionDraftToStorage } from '@/services/ai';
+import { loadImagePayload, saveImagePayload } from '@/services/image-transfer';
 import type { VisionStreamEvent, VisionLatexDraft } from '@/types/domain';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 
+const route = useRoute();
 const router = useRouter();
 const { resolvedTheme } = useTheme();
 
@@ -104,14 +106,30 @@ const finalData = ref<any>(null);
 const imageBase64 = ref('');
 
 onMounted(async () => {
-  // 获取从路由state传来的base64图片
-  const state = router.currentRoute.value.query.data as string;
-  if (!state) {
+  const key = String(route.query.key ?? '').trim();
+  const legacyData = String(route.query.data ?? '').trim();
+
+  if (key) {
+    const payload = loadImagePayload(key);
+    if (payload) {
+      imageBase64.value = payload;
+    }
+  }
+
+  if (!imageBase64.value && legacyData) {
+    imageBase64.value = legacyData;
+    const migratedKey = saveImagePayload(legacyData);
+    router.replace({
+      path: '/ocr/progress',
+      query: { key: migratedKey },
+    });
+  }
+
+  if (!imageBase64.value) {
     errorMessage.value = '未获取到图片数据，请重新拍照';
     return;
   }
 
-  imageBase64.value = state;
   startIdentify();
 });
 

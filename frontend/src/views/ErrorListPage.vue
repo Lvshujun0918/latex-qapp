@@ -125,6 +125,7 @@ import { useTheme } from '@/composables/useTheme';
 import { exportPdfByRecordIds } from '@/services/pdf';
 import { useRecordStore } from '@/stores/record';
 import { pickImageAsBase64 } from '@/services/ai';
+import { saveImagePayload } from '@/services/image-transfer';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -380,12 +381,12 @@ async function createFromCamera(source: 'camera' | 'album' | 'file') {
     generatingMessage.value = '正在准备图片...';
 
     const imageBase64 = await pickImageAsBase64(source);
-    
-    // 导航到OCR进度页面，传递base64数据
+    const imageKey = saveImagePayload(imageBase64);
+
     router.push({
       path: '/image/crop',
       query: {
-        data: imageBase64,
+        key: imageKey,
       },
     });
   } catch (error: any) {

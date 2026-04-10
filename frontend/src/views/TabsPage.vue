@@ -65,6 +65,7 @@ import { BarChart3, BookOpen, CircleUserRound, GraduationCap, PlusCircle } from 
 import ImageSourceDialog from '@/components/ImageSourceDialog.vue';
 import { useTheme } from '@/composables/useTheme';
 import { pickImageAsBase64 } from '@/services/ai';
+import { saveImagePayload } from '@/services/image-transfer';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 const route = useRoute();
@@ -99,9 +100,10 @@ async function handleCreateClick(source: 'camera' | 'album' | 'file') {
     generatingMessage.value = '正在准备图片...';
 
     const imageBase64 = await pickImageAsBase64(source);
+    const imageKey = saveImagePayload(imageBase64);
     router.push({
       path: '/image/crop',
-      query: { data: imageBase64 },
+      query: { key: imageKey },
     });
   } catch (error: any) {
     errorMessage.value = error?.message || '拍照或识别失败，请重试。';
