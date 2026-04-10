@@ -18,6 +18,10 @@ export interface ErrorRecord {
   mistakeReason?: string;
   masteryLevel: number;
   reviewCount: number;
+  reviewEaseFactor: number;
+  lastReviewResult?: 'none' | 'correct' | 'wrong';
+  lastReviewedAt?: string;
+  nextReviewAt?: string;
   createdAt: string;
   updatedAt: string;
 }

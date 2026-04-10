@@ -9,6 +9,12 @@ export interface SaveRecordPayload {
   latex_answer?: string;
   question_tags?: string[];
   mistake_reason?: string;
+  mastery_level?: number;
+  review_count?: number;
+  review_ease_factor?: number;
+  last_review_result?: 'none' | 'correct' | 'wrong';
+  last_reviewed_at?: string;
+  next_review_at?: string;
 }
 
 export function toSavePayload(record: ErrorRecord): SaveRecordPayload {
@@ -20,6 +26,12 @@ export function toSavePayload(record: ErrorRecord): SaveRecordPayload {
     latex_answer: record.latexAnswer,
     question_tags: record.questionTags,
     mistake_reason: record.mistakeReason,
+    mastery_level: record.masteryLevel,
+    review_count: record.reviewCount,
+    review_ease_factor: record.reviewEaseFactor,
+    last_review_result: record.lastReviewResult,
+    last_reviewed_at: record.lastReviewedAt,
+    next_review_at: record.nextReviewAt,
   };
 }
 
@@ -69,6 +81,10 @@ function normalizeRecord(raw: any): ErrorRecord {
     mistakeReason: raw?.mistakeReason ?? raw?.mistake_reason,
     masteryLevel: Number(raw?.masteryLevel ?? raw?.mastery_level ?? 0),
     reviewCount: Number(raw?.reviewCount ?? raw?.review_count ?? 0),
+    reviewEaseFactor: Number(raw?.reviewEaseFactor ?? raw?.review_ease_factor ?? 2.5),
+    lastReviewResult: (raw?.lastReviewResult ?? raw?.last_review_result ?? 'none') as ErrorRecord['lastReviewResult'],
+    lastReviewedAt: raw?.lastReviewedAt ?? raw?.last_reviewed_at,
+    nextReviewAt: raw?.nextReviewAt ?? raw?.next_review_at,
     createdAt: String(raw?.createdAt ?? raw?.created_at ?? ''),
     updatedAt: String(raw?.updatedAt ?? raw?.updated_at ?? ''),
   };

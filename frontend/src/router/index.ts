@@ -56,6 +56,10 @@ const routes: Array<RouteRecordRaw> = [
     path: '/ocr/progress',
     component: () => import('@/views/OcrProgressPage.vue'),
   },
+  {
+    path: '/review/session/:id',
+    component: () => import('@/views/ReviewPracticePage.vue'),
+  },
 ];
 
 const router = createRouter({

@@ -1,77 +1,122 @@
 <template>
   <section class="app-page app-inner-page page-wrap" :class="{ 'is-dark': resolvedTheme === 'dark' }">
-    <header class="app-page-header page-header">
+    <header class="app-page-header page-header compact-header">
       <span class="app-kicker">Daily Focus</span>
       <h1>复习</h1>
-      <p>按艾宾浩斯遗忘曲线安排今日复习清单。</p>
+      <p>
+        间隔节奏 {{ EBBINGHAUS_INTERVALS.join(' / ') }} 天，支持到期复习与手动提前复习。
+      </p>
     </header>
 
-    <div class="overview-grid">
-      <Card class="app-page-shell metric-card">
-        <CardContent class="metric-content">
-          <p class="metric-label">今日应复习</p>
-          <p class="metric-value">{{ dueToday.length }}</p>
-        </CardContent>
-      </Card>
+    <div class="overview-grid" role="list" aria-label="复习概览">
+      <button type="button" class="metric-pill" @click="activeTab = 'due'" role="listitem">
+        <CalendarCheck2 class="pill-icon" :size="16" />
+        <div class="pill-main">
+          <p class="pill-label">今日应复习</p>
+          <p class="pill-value">{{ dueToday.length }}</p>
+        </div>
+      </button>
 
-      <Card class="app-page-shell metric-card">
-        <CardContent class="metric-content">
-          <p class="metric-label">明日将到期</p>
-          <p class="metric-value">{{ dueTomorrow.length }}</p>
-        </CardContent>
-      </Card>
+      <button type="button" class="metric-pill" @click="activeTab = 'manual'" role="listitem">
+        <NotebookPen class="pill-icon" :size="16" />
+        <div class="pill-main">
+          <p class="pill-label">手动复习池</p>
+          <p class="pill-value">{{ manualPool.length }}</p>
+        </div>
+      </button>
 
-      <Card class="app-page-shell metric-card">
-        <CardContent class="metric-content">
-          <p class="metric-label">平均掌握度</p>
-          <p class="metric-value">{{ averageMastery }}%</p>
-        </CardContent>
-      </Card>
+      <div class="metric-pill" role="listitem">
+        <Brain class="pill-icon" :size="16" />
+        <div class="pill-main">
+          <p class="pill-label">平均掌握度</p>
+          <p class="pill-value">{{ averageMastery }}%</p>
+        </div>
+      </div>
+
+      <div class="metric-pill" role="listitem">
+        <Clock3 class="pill-icon" :size="16" />
+        <div class="pill-main">
+          <p class="pill-label">明日将到期</p>
+          <p class="pill-value">{{ dueTomorrow.length }}</p>
+        </div>
+      </div>
     </div>
 
-    <Card class="app-page-shell">
-      <CardHeader>
-        <CardTitle>今日复习清单</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div v-if="dueToday.length" class="review-list">
+    <Card class="app-page-shell list-shell">
+      <CardHeader class="list-header">
+        <CardTitle>复习题单</CardTitle>
+        <div class="tab-switch" role="tablist" aria-label="复习列表切换">
           <button
-            v-for="item in dueToday"
-            :key="item.id"
-            class="review-item"
+            class="tab-button"
+            :class="{ active: activeTab === 'due' }"
             type="button"
-            @click="goDetail(item.id)"
+            role="tab"
+            :aria-selected="activeTab === 'due'"
+            @click="activeTab = 'due'"
           >
-            <div>
-              <p class="review-title">{{ item.title || '未命名题目' }}</p>
-              <p class="review-meta">{{ formatSubject(item.subject) }} · 第 {{ item.reviewCount + 1 }} 次复习 · 间隔 {{ item.nextInterval }} 天</p>
-            </div>
-            <span class="review-urgency">到期 {{ item.overdueDays }} 天</span>
+            今日复习题单
+          </button>
+          <button
+            class="tab-button"
+            :class="{ active: activeTab === 'manual' }"
+            type="button"
+            role="tab"
+            :aria-selected="activeTab === 'manual'"
+            @click="activeTab = 'manual'"
+          >
+            手动复习池
           </button>
         </div>
-        <p v-else class="empty-tip">今天没有到期复习，保持节奏即可。</p>
-      </CardContent>
-    </Card>
-
-    <Card class="app-page-shell">
-      <CardHeader>
-        <CardTitle>复习节奏</CardTitle>
       </CardHeader>
-      <CardContent class="curve-text">
-        系统使用间隔序列：1 天、2 天、4 天、7 天、15 天、30 天。
-        每道题根据当前复习次数匹配下一个间隔，达到或超过间隔即进入“应复习”。
+      <CardContent class="list-content">
+        <div v-if="activeItems.length" class="review-list">
+          <button
+            v-for="item in activeItems"
+            :key="`${activeTab}-${item.id}`"
+            class="review-item"
+            type="button"
+            @click="goPractice(item.id)"
+          >
+            <div class="review-main">
+              <div class="title-row">
+                <p class="review-title">{{ item.title || '未命名题目' }}</p>
+                <span class="result-badge" :class="resultClass(item.lastReviewResult)">{{ resultText(item.lastReviewResult) }}</span>
+              </div>
+              <p class="review-meta">
+                {{ formatSubject(item.subject) }} · 第 {{ item.reviewCount + 1 }} 次 · 目标 {{ item.nextInterval }} 天
+              </p>
+              <div class="progress-row">
+                <div class="progress-track">
+                  <div
+                    class="progress-fill"
+                    :class="{ due: item.overdueDays >= 0 }"
+                    :style="{ width: `${item.progressPercent}%` }"
+                  />
+                </div>
+                <span class="progress-text">{{ item.progressPercent }}%</span>
+              </div>
+            </div>
+            <span class="review-urgency" :class="{ manual: activeTab === 'manual' }">
+              {{ activeTab === 'due' ? `到期 ${item.overdueDays} 天` : `距到期 ${Math.abs(item.overdueDays)} 天` }}
+            </span>
+          </button>
+        </div>
+        <p v-else class="empty-tip">{{ activeTab === 'due' ? '今天没有到期题目，继续保持。' : '暂无可提前复习题目。' }}</p>
       </CardContent>
     </Card>
   </section>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useRouter } from 'vue-router';
+import { Brain, CalendarCheck2, Clock3, NotebookPen } from 'lucide-vue-next';
 import { useTheme } from '@/composables/useTheme';
 import { useRecordStore } from '@/stores/record';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+
+type ReviewTab = 'due' | 'manual';
 
 const EBBINGHAUS_INTERVALS = [1, 2, 4, 7, 15, 30];
 
@@ -79,6 +124,7 @@ const router = useRouter();
 const recordStore = useRecordStore();
 const { records } = storeToRefs(recordStore);
 const { resolvedTheme } = useTheme();
+const activeTab = ref<ReviewTab>('due');
 
 const scheduleRows = computed(() => {
   const now = Date.now();
@@ -86,23 +132,47 @@ const scheduleRows = computed(() => {
     .map((record) => {
       const reviewCount = Math.max(0, Number(record.reviewCount || 0));
       const intervalIndex = Math.min(reviewCount, EBBINGHAUS_INTERVALS.length - 1);
-      const nextInterval = EBBINGHAUS_INTERVALS[intervalIndex];
-      const baseTime = Date.parse(record.updatedAt || record.createdAt || '');
-      const base = Number.isFinite(baseTime) ? baseTime : now;
-      const elapsedDays = Math.floor((now - base) / 86400000);
-      const overdueDays = elapsedDays - nextInterval;
+      const baseInterval = EBBINGHAUS_INTERVALS[intervalIndex];
+      const easeFactor = Math.max(1.3, Math.min(3.0, Number(record.reviewEaseFactor || 2.5)));
+      const nextInterval = Math.max(1, Math.round(baseInterval * easeFactor * 0.55));
+
+      const createdTime = Date.parse(record.createdAt || '');
+      const lastReviewedTime = Date.parse(record.lastReviewedAt || '');
+      const nextReviewTime = Date.parse(record.nextReviewAt || '');
+      const base = Number.isFinite(lastReviewedTime)
+        ? lastReviewedTime
+        : Number.isFinite(createdTime)
+          ? createdTime
+          : now;
+
+      const elapsedDays = Math.max(0, Math.floor((now - base) / 86400000));
+      const overdueDays = Number.isFinite(nextReviewTime)
+        ? Math.floor((now - nextReviewTime) / 86400000)
+        : elapsedDays - nextInterval;
+      const progressPercent = Number.isFinite(nextReviewTime)
+        ? Math.max(0, Math.min(100, Math.round((1 - Math.max(0, nextReviewTime - now) / (nextInterval * 86400000)) * 100)))
+        : Math.max(0, Math.min(100, Math.round((elapsedDays / nextInterval) * 100)));
 
       return {
         ...record,
         nextInterval,
         overdueDays,
+        progressPercent,
       };
     })
     .sort((a, b) => b.overdueDays - a.overdueDays);
 });
 
 const dueToday = computed(() => scheduleRows.value.filter((row) => row.overdueDays >= 0));
+const manualPool = computed(() =>
+  scheduleRows.value
+    .filter((row) => row.overdueDays < 0)
+    .sort((a, b) => b.progressPercent - a.progressPercent || a.masteryLevel - b.masteryLevel)
+    .slice(0, 16),
+);
+const activeItems = computed(() => (activeTab.value === 'due' ? dueToday.value : manualPool.value));
 const dueTomorrow = computed(() => scheduleRows.value.filter((row) => row.overdueDays === -1));
+
 const averageMastery = computed(() => {
   if (!records.value.length) {
     return 0;
@@ -117,8 +187,8 @@ onMounted(() => {
   }
 });
 
-function goDetail(id: number) {
-  router.push(`/records/${id}`);
+function goPractice(id: number) {
+  router.push(`/review/session/${id}`);
 }
 
 function formatSubject(subject?: string) {
@@ -129,54 +199,129 @@ function formatSubject(subject?: string) {
   if (value === 'biology' || value === '生物') return '生物';
   return subject || '未知';
 }
+
+function resultText(result?: string) {
+  if (result === 'correct') return '上次正确';
+  if (result === 'wrong') return '上次错误';
+  return '未判定';
+}
+
+function resultClass(result?: string) {
+  if (result === 'correct') return 'ok';
+  if (result === 'wrong') return 'bad';
+  return 'none';
+}
 </script>
 
 <style scoped>
 .page-wrap {
-  gap: 14px;
+  gap: 12px;
+}
+
+.compact-header :deep(p) {
+  margin-top: 4px;
 }
 
 .overview-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 10px;
 }
 
-.metric-card {
-  min-height: 84px;
+.metric-pill {
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  border-radius: 12px;
+  background: #fff;
+  min-height: 68px;
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-align: left;
 }
 
-.metric-content {
-  display: grid;
-  gap: 4px;
-  padding: 14px;
+button.metric-pill {
+  cursor: pointer;
+  transition: border-color 150ms ease, transform 150ms ease;
 }
 
-.metric-label {
+button.metric-pill:hover {
+  transform: translateY(-1px);
+  border-color: rgba(14, 165, 233, 0.45);
+}
+
+.pill-icon {
+  color: #0369a1;
+  flex: 0 0 auto;
+}
+
+.pill-main {
+  min-width: 0;
+}
+
+.pill-label {
   margin: 0;
-  font-size: 12px;
+  font-size: 11px;
   color: #64748b;
 }
 
-.metric-value {
-  margin: 0;
-  font-size: 24px;
+.pill-value {
+  margin: 2px 0 0;
+  font-size: 20px;
   line-height: 1;
   font-weight: 700;
   color: #0f172a;
 }
 
+.list-shell {
+  margin-top: 2px;
+}
+
+.list-header {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.tab-switch {
+  display: inline-flex;
+  width: fit-content;
+  padding: 3px;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  background: rgba(248, 250, 252, 0.9);
+}
+
+.tab-button {
+  border: none;
+  background: transparent;
+  border-radius: 999px;
+  font-size: 12px;
+  color: #64748b;
+  padding: 6px 12px;
+  cursor: pointer;
+}
+
+.tab-button.active {
+  color: #fff;
+  background: linear-gradient(90deg, #0ea5e9 0%, #22c55e 100%);
+}
+
+.list-content {
+  padding-top: 8px;
+}
+
 .review-list {
   display: grid;
-  gap: 10px;
+  gap: 8px;
 }
 
 .review-item {
   width: 100%;
-  border: 1px solid rgba(148, 163, 184, 0.28);
+  border: 1px solid rgba(148, 163, 184, 0.26);
   border-radius: 12px;
   background: #fff;
-  padding: 12px;
+  padding: 10px 12px;
   text-align: left;
   display: flex;
   align-items: center;
@@ -185,16 +330,90 @@ function formatSubject(subject?: string) {
   cursor: pointer;
 }
 
+.review-main {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  flex: 1;
+}
+
+.title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .review-title {
   margin: 0;
   font-size: 14px;
   font-weight: 600;
   color: #0f172a;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.result-badge {
+  font-size: 10px;
+  border-radius: 999px;
+  padding: 2px 8px;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+.result-badge.ok {
+  color: #065f46;
+  background: rgba(16, 185, 129, 0.15);
+  border-color: rgba(16, 185, 129, 0.28);
+}
+
+.result-badge.bad {
+  color: #991b1b;
+  background: rgba(248, 113, 113, 0.16);
+  border-color: rgba(248, 113, 113, 0.3);
+}
+
+.result-badge.none {
+  color: #475569;
+  background: rgba(148, 163, 184, 0.14);
+  border-color: rgba(148, 163, 184, 0.26);
 }
 
 .review-meta {
-  margin: 4px 0 0;
+  margin: 0;
   font-size: 12px;
+  color: #64748b;
+}
+
+.progress-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.progress-track {
+  position: relative;
+  flex: 1;
+  height: 8px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: rgba(148, 163, 184, 0.22);
+}
+
+.progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #22c55e 0%, #0ea5e9 100%);
+}
+
+.progress-fill.due {
+  background: linear-gradient(90deg, #f59e0b 0%, #ef4444 100%);
+}
+
+.progress-text {
+  width: 42px;
+  text-align: right;
+  font-size: 11px;
   color: #64748b;
 }
 
@@ -204,10 +423,8 @@ function formatSubject(subject?: string) {
   white-space: nowrap;
 }
 
-.curve-text {
-  color: #475569;
-  font-size: 13px;
-  line-height: 1.7;
+.review-urgency.manual {
+  color: #0f766e;
 }
 
 .empty-tip {
@@ -216,31 +433,67 @@ function formatSubject(subject?: string) {
   font-size: 13px;
 }
 
-.is-dark .metric-label,
+.is-dark .metric-pill,
+.is-dark .review-item {
+  background: rgba(30, 41, 59, 0.94);
+  border-color: rgba(148, 163, 184, 0.28);
+}
+
+.is-dark .pill-label,
 .is-dark .review-meta,
-.is-dark .curve-text,
+.is-dark .progress-text,
 .is-dark .empty-tip {
   color: #cbd5e1;
 }
 
-.is-dark .metric-value,
+.is-dark .pill-value,
 .is-dark .review-title {
-  color: #f1f5f9;
+  color: #f8fafc;
 }
 
-.is-dark .review-item {
-  background: rgba(30, 41, 59, 0.95);
-  border-color: rgba(148, 163, 184, 0.25);
+.is-dark .pill-icon {
+  color: #7dd3fc;
 }
 
-@media (max-width: 900px) {
+.is-dark .tab-switch {
+  border-color: rgba(148, 163, 184, 0.3);
+  background: rgba(15, 23, 42, 0.55);
+}
+
+.is-dark .tab-button {
+  color: #cbd5e1;
+}
+
+.is-dark .progress-track {
+  background: rgba(148, 163, 184, 0.28);
+}
+
+.is-dark .result-badge.none {
+  color: #cbd5e1;
+}
+
+.is-dark .review-urgency.manual {
+  color: #5eead4;
+}
+
+@media (max-width: 960px) {
   .overview-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .review-item {
     align-items: flex-start;
     flex-direction: column;
+  }
+}
+
+@media (max-width: 640px) {
+  .tab-switch {
+    width: 100%;
+  }
+
+  .tab-button {
+    flex: 1;
   }
 }
 </style>
