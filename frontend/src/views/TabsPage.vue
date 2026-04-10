@@ -133,7 +133,9 @@ async function handleCreateClick(source: 'camera' | 'album' | 'file') {
 }
 
 .tabs-content {
-  padding: env(safe-area-inset-top, 0px) 16px calc(88px + env(safe-area-inset-bottom, 0px));
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-left: 16px;
+  padding-right: 16px;
 }
 
 .error-wrap {
