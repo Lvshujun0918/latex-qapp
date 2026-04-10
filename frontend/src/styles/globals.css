@@ -166,7 +166,7 @@
   }
 
   .app-page-header {
-    @apply grid items-center gap-x-3 gap-y-1;
+    @apply grid items-center gap-y-1;
     grid-template-columns: auto minmax(0, 1fr) auto;
     grid-template-areas:
       "back title kicker"
