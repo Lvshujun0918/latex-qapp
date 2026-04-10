@@ -10,7 +10,7 @@
 
         <div class="overview-grid" role="list" aria-label="复习概览">
             <button type="button" class="metric-pill" @click="activeTab = 'due'" role="listitem">
-                <CalendarCheck2 class="pill-icon" :size="16" />
+                <CalendarCheck2 class="pill-icon" :size="24" />
                 <div class="pill-main">
                     <p class="pill-label">今日应复习</p>
                     <p class="pill-value">{{ dueToday.length }}</p>
@@ -18,7 +18,7 @@
             </button>
 
             <button type="button" class="metric-pill" @click="activeTab = 'manual'" role="listitem">
-                <NotebookPen class="pill-icon" :size="16" />
+                <NotebookPen class="pill-icon" :size="24" />
                 <div class="pill-main">
                     <p class="pill-label">手动复习池</p>
                     <p class="pill-value">{{ manualPool.length }}</p>
@@ -26,7 +26,7 @@
             </button>
 
             <div class="metric-pill" role="listitem">
-                <Brain class="pill-icon" :size="16" />
+                <Brain class="pill-icon" :size="24" />
                 <div class="pill-main">
                     <p class="pill-label">平均掌握度</p>
                     <p class="pill-value">{{ averageMastery }}%</p>
@@ -34,7 +34,7 @@
             </div>
 
             <div class="metric-pill" role="listitem">
-                <Clock3 class="pill-icon" :size="16" />
+                <Clock3 class="pill-icon" :size="24" />
                 <div class="pill-main">
                     <p class="pill-label">明日将到期</p>
                     <p class="pill-value">{{ dueTomorrow.length }}</p>
