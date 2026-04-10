@@ -770,7 +770,7 @@ func buildExamPrompt(questionType string, subject string) string {
 			"    \\end{enumerate}\n" +
 			"\\end{question}\n" +
 			fence + "\n\n" +
-			"识别图中的题型，必须通过 toolcall 返回结构化JSON片段，不要输出完整question环境。要求：stem 为题干latex片段；选择题把每个选项放到 options 数组；解答题把每个小问放到 sub_questions 数组；fillin/公式等保留latex片段本身。"
+			"识别图中的题型，必须通过 toolcall 返回结构化JSON片段，不要输出完整question环境。要求：stem 为题干latex片段；选择题把每个选项放到 options 数组；解答题把每个小问放到 sub_questions 数组。特别注意：当存在 sub_questions 时，stem 只能保留总题干，不能包含任何(1)(2)等编号小问文本；fillin/公式等保留latex片段本身。"
 
 	meta := fmt.Sprintf("\n\n已知分类结果：subject=%s, question_type=%s。请优先按该题型输出。", subject, questionType)
 	return base + meta

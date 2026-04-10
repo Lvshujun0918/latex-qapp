@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"regexp"
 	"strings"
 
 	"github.com/cloudwego/eino/compose"
@@ -91,6 +92,7 @@ func (s *AIService) nodeGenerateLatex(ctx context.Context, state *PipelineState)
 	if !unmarshalToolCallArguments(msg, "submit_exam_latex", out) {
 		_ = unmarshalJSONFromText(msg.Content, out)
 	}
+	normalizeLatexOutput(out)
 	if strings.TrimSpace(out.Stem) == "" {
 		return nil, errors.New("empty stem from submit_exam_latex")
 	}
@@ -270,6 +272,71 @@ func assembleQuestionLatex(out *LatexOutput) string {
 	default:
 		return stem
 	}
+}
+
+func normalizeLatexOutput(out *LatexOutput) {
+	if out == nil {
+		return
+	}
+
+	out.QuestionType = normalizeQuestionTypeLabel(out.QuestionType)
+	out.Stem = strings.TrimSpace(out.Stem)
+
+	if len(out.SubQuestions) > 0 {
+		cleaned := make([]string, 0, len(out.SubQuestions))
+		seen := map[string]struct{}{}
+		for _, item := range out.SubQuestions {
+			v := strings.TrimSpace(stripLeadingQuestionIndex(item))
+			if v == "" {
+				continue
+			}
+			if _, ok := seen[v]; ok {
+				continue
+			}
+			seen[v] = struct{}{}
+			cleaned = append(cleaned, v)
+		}
+		out.SubQuestions = cleaned
+	}
+
+	if out.QuestionType != "解答" || len(out.SubQuestions) == 0 {
+		return
+	}
+
+	stem := out.Stem
+	for _, sq := range out.SubQuestions {
+		if sq == "" {
+			continue
+		}
+		re := regexp.MustCompile(`(?:^|[；;。\n\r\t\s])(?:[（(]?\d{1,2}[）)\.、．]?\s*)?` + regexp.QuoteMeta(sq))
+		stem = re.ReplaceAllString(stem, " ")
+	}
+
+	if idx := firstQuestionIndexMarkerPos(stem); idx > 0 {
+		stem = stem[:idx]
+	}
+
+	stem = strings.TrimSpace(stem)
+	stem = strings.TrimRight(stem, "；;，,。. ")
+	if stem == "" {
+		stem = "请解答下列问题"
+	}
+	out.Stem = stem
+}
+
+func stripLeadingQuestionIndex(input string) string {
+	v := strings.TrimSpace(input)
+	re := regexp.MustCompile(`^([（(]?\d{1,2}[）)\.、．]\s*)+`)
+	return strings.TrimSpace(re.ReplaceAllString(v, ""))
+}
+
+func firstQuestionIndexMarkerPos(input string) int {
+	re := regexp.MustCompile(`(?:（\s*\d{1,2}\s*）|\(\s*\d{1,2}\s*\)|\b\d{1,2}[\.、．)])`)
+	idx := re.FindStringIndex(input)
+	if len(idx) == 2 {
+		return idx[0]
+	}
+	return -1
 }
 
 // ============= Graph Building =============
