@@ -41,6 +41,10 @@ const routes: Array<RouteRecordRaw> = [
     component: () => import('@/views/ErrorEditorPage.vue'),
   },
   {
+    path: '/image/crop',
+    component: () => import('@/views/ImageCropPage.vue'),
+  },
+  {
     path: '/records/:id',
     component: () => import('@/views/ErrorDetailPage.vue'),
   },

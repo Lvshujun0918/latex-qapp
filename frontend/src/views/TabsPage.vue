@@ -64,7 +64,7 @@ import { useRoute, useRouter, RouterLink, RouterView } from 'vue-router';
 import { BarChart3, BookOpen, CircleUserRound, GraduationCap, PlusCircle } from 'lucide-vue-next';
 import ImageSourceDialog from '@/components/ImageSourceDialog.vue';
 import { useTheme } from '@/composables/useTheme';
-import { generateLatexDraftByVisionStream, pickImageAsBase64, saveVisionDraftToStorage } from '@/services/ai';
+import { pickImageAsBase64 } from '@/services/ai';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 const route = useRoute();
@@ -99,31 +99,10 @@ async function handleCreateClick(source: 'camera' | 'album' | 'file') {
     generatingMessage.value = '正在准备图片...';
 
     const imageBase64 = await pickImageAsBase64(source);
-    const draft = await generateLatexDraftByVisionStream(imageBase64, (evt) => {
-      switch (evt.stage) {
-        case 'classify':
-          generatingMessage.value = '正在识别学科与题型...';
-          break;
-        case 'latex':
-          generatingMessage.value = '正在生成题目 LaTeX...';
-          break;
-        case 'tags':
-          generatingMessage.value = '正在生成标签...';
-          break;
-        case 'final':
-          generatingMessage.value = '识别完成，正在进入编辑页...';
-          break;
-        default:
-          break;
-      }
+    router.push({
+      path: '/image/crop',
+      query: { data: imageBase64 },
     });
-
-    if (!draft.latexQuestion.trim()) {
-      throw new Error('识别结果为空');
-    }
-
-    saveVisionDraftToStorage(draft);
-    router.push('/records/new');
   } catch (error: any) {
     errorMessage.value = error?.message || '拍照或识别失败，请重试。';
   } finally {

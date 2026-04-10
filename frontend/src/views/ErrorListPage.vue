@@ -383,7 +383,7 @@ async function createFromCamera(source: 'camera' | 'album' | 'file') {
     
     // 导航到OCR进度页面，传递base64数据
     router.push({
-      path: '/ocr/progress',
+      path: '/image/crop',
       query: {
         data: imageBase64,
       },
