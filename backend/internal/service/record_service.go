@@ -3,6 +3,7 @@ package service
 import (
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"latex-qapp/backend/internal/model"
 
@@ -14,13 +15,19 @@ type RecordService struct {
 }
 
 type CreateRecordInput struct {
-	Subject       string   `json:"subject"`
-	QuestionType  string   `json:"question_type"`
-	Title         string   `json:"title"`
-	LatexSource   JSONText `json:"latex_source"`
-	LatexAnswer   string   `json:"latex_answer"`
-	QuestionTags  []string `json:"question_tags"`
-	MistakeReason string   `json:"mistake_reason"`
+	Subject          string     `json:"subject"`
+	QuestionType     string     `json:"question_type"`
+	Title            string     `json:"title"`
+	LatexSource      JSONText   `json:"latex_source"`
+	LatexAnswer      string     `json:"latex_answer"`
+	QuestionTags     []string   `json:"question_tags"`
+	MistakeReason    string     `json:"mistake_reason"`
+	MasteryLevel     *int       `json:"mastery_level"`
+	ReviewCount      *int       `json:"review_count"`
+	ReviewEaseFactor *float64   `json:"review_ease_factor"`
+	LastReviewResult *string    `json:"last_review_result"`
+	LastReviewedAt   *time.Time `json:"last_reviewed_at"`
+	NextReviewAt     *time.Time `json:"next_review_at"`
 }
 
 // JSONText accepts either a JSON string literal or a JSON object/array,
@@ -110,6 +117,27 @@ func (s *RecordService) Create(userID uint, input CreateRecordInput) (*model.Err
 		MistakeReason:     input.MistakeReason,
 		MasteryLevel:      0,
 		ReviewCount:       0,
+		ReviewEaseFactor:  2.5,
+		LastReviewResult:  "none",
+	}
+
+	if input.MasteryLevel != nil {
+		record.MasteryLevel = clampNonNegative(*input.MasteryLevel)
+	}
+	if input.ReviewCount != nil {
+		record.ReviewCount = clampNonNegative(*input.ReviewCount)
+	}
+	if input.ReviewEaseFactor != nil {
+		record.ReviewEaseFactor = clampEase(*input.ReviewEaseFactor)
+	}
+	if input.LastReviewResult != nil {
+		record.LastReviewResult = normalizeReviewResult(*input.LastReviewResult)
+	}
+	if input.LastReviewedAt != nil {
+		record.LastReviewedAt = input.LastReviewedAt
+	}
+	if input.NextReviewAt != nil {
+		record.NextReviewAt = input.NextReviewAt
 	}
 
 	if err := s.db.Create(&record).Error; err != nil {
@@ -134,11 +162,55 @@ func (s *RecordService) Update(userID uint, id uint, input CreateRecordInput) (*
 	record.QuestionTagsJSON = string(tagsBytes)
 	record.MistakeReason = input.MistakeReason
 	record.LatexVersion = record.LatexVersion + 1
+	if input.MasteryLevel != nil {
+		record.MasteryLevel = clampNonNegative(*input.MasteryLevel)
+	}
+	if input.ReviewCount != nil {
+		record.ReviewCount = clampNonNegative(*input.ReviewCount)
+	}
+	if input.ReviewEaseFactor != nil {
+		record.ReviewEaseFactor = clampEase(*input.ReviewEaseFactor)
+	}
+	if input.LastReviewResult != nil {
+		record.LastReviewResult = normalizeReviewResult(*input.LastReviewResult)
+	}
+	if input.LastReviewedAt != nil {
+		record.LastReviewedAt = input.LastReviewedAt
+	}
+	if input.NextReviewAt != nil {
+		record.NextReviewAt = input.NextReviewAt
+	}
 
 	if err := s.db.Save(record).Error; err != nil {
 		return nil, err
 	}
 	return record, nil
+}
+
+func clampNonNegative(value int) int {
+	if value < 0 {
+		return 0
+	}
+	return value
+}
+
+func clampEase(value float64) float64 {
+	if value < 1.3 {
+		return 1.3
+	}
+	if value > 3.0 {
+		return 3.0
+	}
+	return value
+}
+
+func normalizeReviewResult(value string) string {
+	switch value {
+	case "correct", "wrong", "none":
+		return value
+	default:
+		return "none"
+	}
 }
 
 func (s *RecordService) Delete(userID uint, id uint) error {
