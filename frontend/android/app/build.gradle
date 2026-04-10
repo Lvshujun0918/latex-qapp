@@ -1,5 +1,11 @@
 apply plugin: 'com.android.application'
 
+def ciVersionName = (project.findProperty('VERSION_NAME') ?: '1.0.0').toString()
+def ciVersionCodeRaw = (project.findProperty('VERSION_CODE') ?: '1').toString()
+def ciGitSha = (project.findProperty('GIT_SHA') ?: 'dev').toString()
+def ciBuildTime = (project.findProperty('BUILD_TIME') ?: 'local').toString()
+def ciVersionCode = ciVersionCodeRaw ==~ /^\d+$/ ? ciVersionCodeRaw.toInteger() : 1
+
 android {
     namespace = "io.ionic.starter"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -7,8 +13,14 @@ android {
         applicationId "io.ionic.starter"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        versionCode ciVersionCode
+        versionName ciVersionName
+        buildConfigField "String", "APP_VERSION_NAME", "\"${ciVersionName}\""
+        buildConfigField "int", "APP_VERSION_CODE", "${ciVersionCode}"
+        buildConfigField "String", "GIT_SHA", "\"${ciGitSha}\""
+        buildConfigField "String", "BUILD_TIME", "\"${ciBuildTime}\""
+        resValue "string", "app_version_name", ciVersionName
+        resValue "string", "app_version_code", String.valueOf(ciVersionCode)
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
