@@ -1,35 +1,82 @@
 <template>
-  <div class="markdown-view" :class="{ 'is-dark': resolvedTheme === 'dark' }" v-html="html" />
+  <div class="markdown-view" :class="{ 'is-dark': resolvedTheme === 'dark' }">
+    <MdPreview
+      :modelValue="renderedSource"
+      :editorId="editorId"
+      :theme="viewerTheme"
+      :previewTheme="viewerPreviewTheme"
+      :codeTheme="viewerCodeTheme"
+      languageUserDefined
+    />
+  </div>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue';
-import MarkdownIt from 'markdown-it';
-import katex from 'markdown-it-katex';
-import 'katex/dist/katex.min.css';
+import { MdPreview } from 'md-editor-v3';
+import 'md-editor-v3/lib/preview.css';
 import { useTheme } from '@/composables/useTheme';
 
 const props = defineProps<{
   source?: string;
 }>();
 const { resolvedTheme } = useTheme();
+const editorId = 'analysis-preview';
+const viewerTheme = resolvedTheme.value === 'dark' ? 'dark' : 'light';
+const viewerPreviewTheme = resolvedTheme.value === 'dark' ? 'default' : 'github';
+const viewerCodeTheme = 'atom';
 
-const md = new MarkdownIt({
-  html: false,
-  linkify: true,
-  breaks: true,
-}).use(katex);
-
-const html = computed(() => {
-  const input = (props.source || '').trim();
+const renderedSource = computed(() => {
+  const input = normalizeSource(props.source || '');
   if (!input) {
-    return '<p>暂无解析</p>';
+    return '暂无解析';
   }
-  const normalized = input
+
+  return input
     .replace(/\\\[([\s\S]*?)\\\]/g, (_m, p1) => `$$${String(p1).trim()}$$`)
-    .replace(/\\\(([\s\S]*?)\\\)/g, (_m, p1) => `$${String(p1).trim()}$`);
-  return md.render(normalized);
+    .replace(/\\\(([^\n]*?)\\\)/g, (_m, p1) => `$${String(p1).trim()}$`);
 });
+
+function normalizeSource(raw: string) {
+  let input = decodeHtml(String(raw || '').trim());
+  if (!input) {
+    return '';
+  }
+
+  input = cleanupText(input)
+    .replace(/,\s*,+/g, ', ')
+    .replace(/，\s*，+/g, '，')
+    .replace(/(\(|\[)\s*,\s*/g, '$1')
+    .replace(/\s*,\s*(\)|\])/g, '$1');
+
+  input = input.replace(/(^|\n)(\\begin\{cases\}[\s\S]*?\\end\{cases\})(?=\n|$)/g, (_m, p1, p2) => {
+    const block = String(p2 || '').trim();
+    return `${p1}\n$$${block}$$\n`;
+  });
+
+  return input;
+}
+
+function decodeHtml(input: string) {
+  return input
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&amp;/gi, '&')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    .replace(/&ZeroWidthSpace;/gi, '');
+}
+
+function cleanupText(input: string) {
+  return input
+    .replace(/\r/g, '')
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n[ \t]+/g, '\n')
+    .replace(/[ \t]{2,}/g, ' ')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
 </script>
 
 <style scoped>
@@ -40,40 +87,40 @@ const html = computed(() => {
   overflow-x: auto;
 }
 
-.markdown-view :deep(p) {
+.markdown-view :deep(.md-editor-preview-wrapper) {
+  padding: 0;
+}
+
+.markdown-view :deep(.md-editor-preview) {
+  background: transparent;
+  padding: 0;
+}
+
+.markdown-view :deep(.md-editor-preview p) {
   margin: 0;
 }
 
-.markdown-view :deep(p + p) {
+.markdown-view :deep(.md-editor-preview p + p) {
   margin-top: 8px;
 }
 
-.markdown-view :deep(ul),
-.markdown-view :deep(ol) {
+.markdown-view :deep(.md-editor-preview ul),
+.markdown-view :deep(.md-editor-preview ol) {
   margin: 8px 0 0;
   padding-left: 20px;
+}
+
+.markdown-view :deep(.md-editor-preview blockquote) {
+  margin: 8px 0 0;
+  border-left: 3px solid rgba(59, 130, 246, 0.42);
+  padding-left: 10px;
+  color: #475569;
 }
 
 .markdown-view :deep(code) {
   background: rgba(148, 163, 184, 0.16);
   border-radius: 6px;
   padding: 1px 5px;
-}
-
-.markdown-view :deep(pre) {
-  margin: 8px 0 0;
-  background: rgba(148, 163, 184, 0.12);
-  border-radius: 10px;
-  padding: 10px;
-  overflow-x: auto;
-  max-width: 100%;
-}
-
-.markdown-view :deep(blockquote) {
-  margin: 8px 0 0;
-  border-left: 3px solid rgba(59, 130, 246, 0.42);
-  padding-left: 10px;
-  color: #475569;
 }
 
 .markdown-view :deep(.katex) {
@@ -97,6 +144,14 @@ const html = computed(() => {
 
 .markdown-view.is-dark {
   color: #cbd5e1;
+}
+
+.markdown-view.is-dark :deep(.md-editor) {
+  background: transparent;
+}
+
+.markdown-view.is-dark :deep(.md-editor-preview-wrapper) {
+  background: transparent;
 }
 
 .markdown-view.is-dark :deep(.katex) {
