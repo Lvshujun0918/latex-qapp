@@ -1,5 +1,7 @@
 # LaTeX QApp
 
+![项目图像](https://github.com/user-attachments/assets/93799a53-200a-4202-9247-841d0b6456e5)
+
 一个面向移动端的 AI 错题本项目：支持拍照识别题目、LaTeX 草稿生成、AI 解题解析、错题管理与统计、按题目导出 PDF。
 
 ## 目录
