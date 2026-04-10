@@ -143,23 +143,96 @@ jobs:
 
           CURRENT_TAG="${{ steps.tag.outputs.value }}"
           PREV_TAG=$(git tag --list 'v*' --sort=-version:refname | grep -vx "$CURRENT_TAG" | head -n 1 || true)
+          BUILD_TIME="${{ steps.meta.outputs.build_time }}"
+          SHORT_SHA="${GITHUB_SHA::7}"
+
+          if [ -n "$PREV_TAG" ]; then
+            LOG_RANGE="$PREV_TAG..$CURRENT_TAG"
+            RANGE_TITLE="自从上一版本 $PREV_TAG 以来的更新如下"
+          else
+            LOG_RANGE="$CURRENT_TAG"
+            RANGE_TITLE="初始版本，更新如下"
+          fi
+
+          tmp_dir=$(mktemp -d)
+          trap 'rm -rf "$tmp_dir"' EXIT
+
+          group_titles=(
+            "🚀 新功能"
+            "🐛 问题修复"
+            "📚 文档更新"
+            "⚡️ 性能优化"
+            "♻️ 代码重构"
+            "💄 代码格式"
+            "✅ 测试相关"
+            "👷 CI配置"
+            "📦️ 构建系统"
+            "🔧 其他更新"
+          )
+
+          group_files=(
+            "$tmp_dir/01"
+            "$tmp_dir/02"
+            "$tmp_dir/03"
+            "$tmp_dir/04"
+            "$tmp_dir/05"
+            "$tmp_dir/06"
+            "$tmp_dir/07"
+            "$tmp_dir/08"
+            "$tmp_dir/09"
+            "$tmp_dir/10"
+          )
+
+          for file in "${group_files[@]}"; do
+            : > "$file"
+          done
+
+          while IFS=$'\x1f' read -r subject abbrev; do
+            [ -z "$subject" ] && continue
+
+            if [[ "$subject" =~ ^feat(\([[:alnum:]_-]+\))?:[[:space:]].*$ ]]; then
+              printf -- '- %s (%s)\n' "$subject" "$abbrev" >> "${group_files[0]}"
+            elif [[ "$subject" =~ ^fix(\([[:alnum:]_-]+\))?:[[:space:]].*$ ]]; then
+              printf -- '- %s (%s)\n' "$subject" "$abbrev" >> "${group_files[1]}"
+            elif [[ "$subject" =~ ^docs(\([[:alnum:]_-]+\))?:[[:space:]].*$ ]]; then
+              printf -- '- %s (%s)\n' "$subject" "$abbrev" >> "${group_files[2]}"
+            elif [[ "$subject" =~ ^perf(\([[:alnum:]_-]+\))?:[[:space:]].*$ ]]; then
+              printf -- '- %s (%s)\n' "$subject" "$abbrev" >> "${group_files[3]}"
+            elif [[ "$subject" =~ ^refactor(\([[:alnum:]_-]+\))?:[[:space:]].*$ ]]; then
+              printf -- '- %s (%s)\n' "$subject" "$abbrev" >> "${group_files[4]}"
+            elif [[ "$subject" =~ ^style(\([[:alnum:]_-]+\))?:[[:space:]].*$ ]]; then
+              printf -- '- %s (%s)\n' "$subject" "$abbrev" >> "${group_files[5]}"
+            elif [[ "$subject" =~ ^test(\([[:alnum:]_-]+\))?:[[:space:]].*$ ]]; then
+              printf -- '- %s (%s)\n' "$subject" "$abbrev" >> "${group_files[6]}"
+            elif [[ "$subject" =~ ^ci(\([[:alnum:]_-]+\))?:[[:space:]].*$ ]]; then
+              printf -- '- %s (%s)\n' "$subject" "$abbrev" >> "${group_files[7]}"
+            elif [[ "$subject" =~ ^build(\([[:alnum:]_-]+\))?:[[:space:]].*$ ]]; then
+              printf -- '- %s (%s)\n' "$subject" "$abbrev" >> "${group_files[8]}"
+            else
+              printf -- '- %s (%s)\n' "$subject" "$abbrev" >> "${group_files[9]}"
+            fi
+          done < <(git log --reverse --no-merges --pretty=format:'%s%x1f%h' "$LOG_RANGE")
 
           {
-            echo "# 更新日志"
+            echo "## $CURRENT_TAG 更新日志"
+            echo "🎉 **正式版本发布完成！**"
+            echo "### 📋 版本信息"
+            echo "- 版本号: $CURRENT_TAG"
+            echo "- 编译时间: $BUILD_TIME"
+            echo "- 提交ID: $SHORT_SHA"
             echo
-            echo "## $CURRENT_TAG"
-            echo
-            echo "- 编译时间: ${{ steps.meta.outputs.build_time }}"
-            echo "- 提交ID: ${GITHUB_SHA::7}"
-            echo
+            echo "### $RANGE_TITLE"
 
-            if [ -n "$PREV_TAG" ]; then
-              echo "### 自从上一版本 $PREV_TAG 以来的更新如下：" 
-              git log --no-merges --pretty=format:'- %s (%h)' "$PREV_TAG..$CURRENT_TAG"
-            else
-              echo "### 初始版本，更新如下："
-              git log --no-merges --pretty=format:'- %s (%h)' --max-count=20 "$CURRENT_TAG"
-            fi
+            for index in "${!group_titles[@]}"; do
+              file="${group_files[$index]}"
+              if [ ! -s "$file" ]; then
+                continue
+              fi
+
+              echo "#### ${group_titles[$index]}"
+              cat "$file"
+              echo
+            done
           } > dist/changelog.md
 
       - name: Prepare APK artifact
