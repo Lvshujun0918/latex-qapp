@@ -115,7 +115,7 @@ async function generateAiSolution() {
     const solved = await generateSolutionByLatexStream({
       subject: record.value.subject,
       questionType: record.value.questionType,
-      latexQuestion: record.value.latexSource,
+      latexSource: record.value.latexSource,
     }, () => {});
 
     // 逐字显示答案
