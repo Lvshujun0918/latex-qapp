@@ -30,20 +30,11 @@
           <template v-if="pdfUrl">
             <Button
               v-if="isNativePlatform"
-              class="download-link"
-              :disabled="saving"
-              @click="savePdfNative"
-            >
-              {{ saving ? '保存中...' : '保存到手机' }}
-            </Button>
-
-            <Button
-              v-if="isNativePlatform"
               variant="outline"
               :disabled="openingNative"
               @click="openPdfNative"
             >
-              {{ openingNative ? '打开中...' : '原生打开 PDF' }}
+              {{ openingNative ? '打开中...' : '打开 PDF' }}
             </Button>
 
             <a
@@ -65,16 +56,6 @@
         <p v-if="errorMessage" class="error">{{ errorMessage }}</p>
       </CardContent>
     </Card>
-
-    <Card v-if="pdfUrl" class="app-page-shell preview-shell">
-      <CardHeader>
-        <CardTitle>PDF 预览</CardTitle>
-      </CardHeader>
-      <CardContent class="preview-content">
-        <VuePdfEmbed :source="pdfUrl" class="pdf-preview" />
-      </CardContent>
-    </Card>
-
     <Card class="app-page-shell tips-shell">
       <CardHeader>
         <CardTitle>生成信息</CardTitle>
@@ -102,7 +83,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { Capacitor } from '@capacitor/core';
-import VuePdfEmbed from 'vue-pdf-embed';
 import { GlobalWorkerOptions } from 'pdfjs-dist';
 import PdfWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import { useRoute } from 'vue-router';
