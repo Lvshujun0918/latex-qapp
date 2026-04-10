@@ -290,6 +290,7 @@ function goBack() {
   display: flex;
   align-items: center;
   gap: 10px;
+  justify-content: center;
 }
 
 .download-link {
