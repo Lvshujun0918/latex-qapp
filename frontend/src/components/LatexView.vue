@@ -1,6 +1,25 @@
 <template>
   <div class="latex-view">
-    <template v-if="questions.length">
+    <template v-if="jsonQuestion">
+      <article class="question-card">
+        <header class="question-head">
+          <div class="question-stem plain-json" v-html="renderPlainText(jsonQuestion.stem)" />
+        </header>
+
+        <ol v-if="jsonQuestion.options.length" class="question-choices">
+          <li v-for="(choice, cIdx) in jsonQuestion.options" :key="`json-c-${cIdx}`">
+            <span class="choice-label">{{ choiceLabel(Number(cIdx)) }}.</span>
+            <span class="plain-json" v-html="renderPlainText(choice)" />
+          </li>
+        </ol>
+
+        <ol v-if="jsonQuestion.subQuestions.length" class="question-parts">
+          <li v-for="(part, pIdx) in jsonQuestion.subQuestions" :key="`json-p-${pIdx}`" class="plain-json" v-html="renderPlainText(part)" />
+        </ol>
+      </article>
+    </template>
+
+    <template v-else-if="questions.length">
       <article
         v-for="(q, idx) in questions"
         :key="`${idx}-${q.stem}`"
@@ -48,7 +67,37 @@ const props = defineProps<{
 
 const normalizedSource = computed(() => (props.source || '').trim());
 
+const jsonQuestion = computed(() => parseQuestionJSON(normalizedSource.value));
 const questions = computed(() => parseExamQuestions(normalizedSource.value));
+
+function parseQuestionJSON(input: string) {
+  if (!input) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(input) as any;
+    if (!parsed || typeof parsed !== 'object') {
+      return null;
+    }
+
+    const stem = String(parsed.stem ?? '').trim();
+    if (!stem) {
+      return null;
+    }
+
+    return {
+      questionType: String(parsed.question_type ?? '').trim(),
+      stem,
+      options: Array.isArray(parsed.options) ? parsed.options.map((it: any) => String(it ?? '').trim()).filter(Boolean) : [],
+      subQuestions: Array.isArray(parsed.sub_questions)
+        ? parsed.sub_questions.map((it: any) => String(it ?? '').trim()).filter(Boolean)
+        : [],
+    };
+  } catch {
+    return null;
+  }
+}
 
 function parseExamQuestions(input: string): ParsedQuestion[] {
   const list: ParsedQuestion[] = [];
@@ -174,6 +223,21 @@ function renderRichText(input: string, displayAsBlock = false) {
   return htmlParts.join('');
 }
 
+function renderPlainText(input: string) {
+  const content = cleanupText(input);
+  if (!content) {
+    return '<span class="latex-empty">暂无内容</span>';
+  }
+
+  const paToken = '__EXAM_PA_BLANK__';
+  const fillinToken = '__EXAM_FILLIN_BLANK__';
+  const normalized = content
+    .replace(/\\pa/g, paToken)
+    .replace(/\\fillin(?:\[[^\]]*\])?\[[^\]]*\]/g, fillinToken);
+
+  return applyBlankTokens(escapeHtml(normalized).replace(/\n/g, '<br/>'), paToken, fillinToken);
+}
+
 function applyBlankTokens(input: string, paToken: string, fillinToken: string) {
   return input
     .replaceAll(paToken, '<span class="blank-pa">（&nbsp;&nbsp;&nbsp;&nbsp;）</span>')
@@ -250,6 +314,11 @@ function choiceGridStyle(columns: number) {
 
 .question-stem {
   flex: 1;
+}
+
+.plain-json {
+  white-space: normal;
+  word-break: break-word;
 }
 
 .question-choices {

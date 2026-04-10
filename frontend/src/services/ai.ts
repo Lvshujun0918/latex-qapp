@@ -129,11 +129,13 @@ export async function generateLatexDraftByVisionStream(
 
 export async function generateSolutionByLatex(payload: {
   latexQuestion: string;
+  latexSource?: string;
   questionType?: string;
   subject?: string;
 }): Promise<{ latexAnswer: string; latexSolution: string }> {
   const { data } = await apiClient.post('/api/ai/solve', {
     latex_question: payload.latexQuestion,
+    latex_source: payload.latexSource,
     question_type: normalizeQuestionTypeLabel(payload.questionType),
     subject: normalizeSubjectLabel(payload.subject),
   });
@@ -146,7 +148,7 @@ export async function generateSolutionByLatex(payload: {
 }
 
 export async function generateSolutionByLatexStream(
-  payload: { latexQuestion: string; questionType?: string; subject?: string },
+  payload: { latexQuestion?: string; latexSource?: string; questionType?: string; subject?: string },
   onEvent: (evt: { stage: string; latex_answer?: string; latex_solution?: string; done?: boolean; error?: string }) => void,
 ): Promise<{ latexAnswer: string; latexSolution: string }> {
   const token = localStorage.getItem('accessToken') || '';
@@ -161,6 +163,7 @@ export async function generateSolutionByLatexStream(
     },
     body: JSON.stringify({
       latex_question: payload.latexQuestion,
+      latex_source: payload.latexSource,
       question_type: normalizeQuestionTypeLabel(payload.questionType),
       subject: normalizeSubjectLabel(payload.subject),
     }),
