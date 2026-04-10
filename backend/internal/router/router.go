@@ -4,6 +4,7 @@ import (
 	"latex-qapp/backend/internal/config"
 	"latex-qapp/backend/internal/handler"
 	"latex-qapp/backend/internal/middleware"
+	"strings"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -18,14 +19,26 @@ func New(
 	pdfHandler *handler.PDFHandler,
 ) *gin.Engine {
 	r := gin.Default()
-	r.Static("/public", "./public")
 
-	r.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{cfg.AllowOrigin},
-		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		AllowHeaders:     []string{"Authorization", "Content-Type"},
-		AllowCredentials: true,
-	}))
+	allowedOrigins := buildAllowedOrigins(cfg.AllowOrigin)
+	corsCfg := cors.Config{
+		AllowMethods: []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowHeaders: []string{"Authorization", "Content-Type"},
+		ExposeHeaders: []string{
+			"Content-Disposition",
+			"Content-Type",
+		},
+		AllowCredentials: false,
+	}
+
+	if containsWildcardOrigin(allowedOrigins) {
+		corsCfg.AllowAllOrigins = true
+	} else {
+		corsCfg.AllowOrigins = allowedOrigins
+	}
+
+	r.Use(cors.New(corsCfg))
+	r.Static("/public", "./public")
 
 	r.GET("/health", func(c *gin.Context) {
 		c.JSON(200, gin.H{"ok": true})
@@ -72,4 +85,48 @@ func New(
 	}
 
 	return r
+}
+
+func buildAllowedOrigins(raw string) []string {
+	origins := make([]string, 0, 8)
+	seen := map[string]struct{}{}
+
+	push := func(origin string) {
+		v := strings.TrimSpace(origin)
+		if v == "" {
+			return
+		}
+		if _, ok := seen[v]; ok {
+			return
+		}
+		seen[v] = struct{}{}
+		origins = append(origins, v)
+	}
+
+	for _, chunk := range strings.Split(raw, ",") {
+		push(chunk)
+	}
+
+	if len(origins) == 0 {
+		push("*")
+	}
+
+	// Keep local development and Capacitor webview origins working by default.
+	push("http://localhost:5173")
+	push("http://localhost:5174")
+	push("http://127.0.0.1:5173")
+	push("http://127.0.0.1:5174")
+	push("capacitor://localhost")
+	push("http://localhost")
+
+	return origins
+}
+
+func containsWildcardOrigin(origins []string) bool {
+	for _, origin := range origins {
+		if strings.TrimSpace(origin) == "*" {
+			return true
+		}
+	}
+	return false
 }
