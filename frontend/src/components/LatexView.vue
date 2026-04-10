@@ -3,18 +3,18 @@
     <template v-if="jsonQuestion">
       <article class="question-card">
         <header class="question-head">
-          <div class="question-stem plain-json" v-html="renderPlainText(jsonQuestion.stem)" />
+          <div class="question-stem" v-html="renderRichText(jsonQuestion.stem)" />
         </header>
 
         <ol v-if="jsonQuestion.options.length" class="question-choices">
           <li v-for="(choice, cIdx) in jsonQuestion.options" :key="`json-c-${cIdx}`">
             <span class="choice-label">{{ choiceLabel(Number(cIdx)) }}.</span>
-            <span class="plain-json" v-html="renderPlainText(choice)" />
+            <span v-html="renderRichText(choice)" />
           </li>
         </ol>
 
         <ol v-if="jsonQuestion.subQuestions.length" class="question-parts">
-          <li v-for="(part, pIdx) in jsonQuestion.subQuestions" :key="`json-p-${pIdx}`" class="plain-json" v-html="renderPlainText(part)" />
+          <li v-for="(part, pIdx) in jsonQuestion.subQuestions" :key="`json-p-${pIdx}`" v-html="renderRichText(part)" />
         </ol>
       </article>
     </template>
@@ -221,21 +221,6 @@ function renderRichText(input: string, displayAsBlock = false) {
   }
 
   return htmlParts.join('');
-}
-
-function renderPlainText(input: string) {
-  const content = cleanupText(input);
-  if (!content) {
-    return '<span class="latex-empty">暂无内容</span>';
-  }
-
-  const paToken = '__EXAM_PA_BLANK__';
-  const fillinToken = '__EXAM_FILLIN_BLANK__';
-  const normalized = content
-    .replace(/\\pa/g, paToken)
-    .replace(/\\fillin(?:\[[^\]]*\])?\[[^\]]*\]/g, fillinToken);
-
-  return applyBlankTokens(escapeHtml(normalized).replace(/\n/g, '<br/>'), paToken, fillinToken);
 }
 
 function applyBlankTokens(input: string, paToken: string, fillinToken: string) {
