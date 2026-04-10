@@ -145,7 +145,7 @@
 @layer components {
   .app-page {
     @apply mx-auto grid w-full max-w-5xl gap-4 px-3 pb-6 sm:px-4;
-    padding-top: calc(16px + env(safe-area-inset-top, 0px));
+    padding-top: env(safe-area-inset-top, 0px);
     animation: app-reveal 360ms ease-out both;
   }
 
