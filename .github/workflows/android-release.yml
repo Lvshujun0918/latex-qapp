@@ -145,19 +145,19 @@ jobs:
           PREV_TAG=$(git tag --list 'v*' --sort=-version:refname | grep -vx "$CURRENT_TAG" | head -n 1 || true)
 
           {
-            echo "# Changelog"
+            echo "# 更新日志"
             echo
             echo "## $CURRENT_TAG"
             echo
-            echo "- Build time: ${{ steps.meta.outputs.build_time }}"
-            echo "- Commit: ${GITHUB_SHA::7}"
+            echo "- 编译时间: ${{ steps.meta.outputs.build_time }}"
+            echo "- 提交ID: ${GITHUB_SHA::7}"
             echo
 
             if [ -n "$PREV_TAG" ]; then
-              echo "### Changes since $PREV_TAG"
+              echo "### 自从上一版本 $PREV_TAG 以来的更新如下：" 
               git log --no-merges --pretty=format:'- %s (%h)' "$PREV_TAG..$CURRENT_TAG"
             else
-              echo "### Initial release commits"
+              echo "### 初始版本，更新如下："
               git log --no-merges --pretty=format:'- %s (%h)' --max-count=20 "$CURRENT_TAG"
             fi
           } > dist/changelog.md
