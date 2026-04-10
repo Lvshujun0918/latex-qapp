@@ -90,6 +90,28 @@ jobs:
           distribution: temurin
           java-version: 21
 
+      - name: Restore release keystore
+        shell: bash
+        run: |
+          RELEASE_KEYSTORE_B64='${{ secrets.RELEASE_KEYSTORE_B64 }}'
+          RELEASE_KEYSTORE_PASSWORD='${{ secrets.RELEASE_KEYSTORE_PASSWORD }}'
+          RELEASE_KEY_PASSWORD='${{ secrets.RELEASE_KEY_PASSWORD }}'
+
+          if [ -z "$RELEASE_KEYSTORE_B64" ] || [ -z "$RELEASE_KEYSTORE_PASSWORD" ] || [ -z "$RELEASE_KEY_PASSWORD" ]; then
+            echo "Missing release signing secrets"
+            exit 1
+          fi
+
+          mkdir -p frontend/android/keystore
+          echo "$RELEASE_KEYSTORE_B64" | base64 -d > frontend/android/keystore/release.jks
+
+          {
+            echo "RELEASE_STORE_FILE=$GITHUB_WORKSPACE/frontend/android/keystore/release.jks"
+            echo "RELEASE_STORE_PASSWORD=$RELEASE_KEYSTORE_PASSWORD"
+            echo "RELEASE_KEY_ALIAS=lvshujun"
+            echo "RELEASE_KEY_PASSWORD=$RELEASE_KEY_PASSWORD"
+          } >> "$GITHUB_ENV"
+
       - name: Build web assets
         working-directory: frontend
         run: |
@@ -105,10 +127,40 @@ jobs:
         run: |
           chmod +x ./gradlew
           ./gradlew assembleRelease \
+            -PRELEASE_STORE_FILE="$RELEASE_STORE_FILE" \
+            -PRELEASE_STORE_PASSWORD="$RELEASE_STORE_PASSWORD" \
+            -PRELEASE_KEY_ALIAS="$RELEASE_KEY_ALIAS" \
+            -PRELEASE_KEY_PASSWORD="$RELEASE_KEY_PASSWORD" \
             -PVERSION_NAME=${{ steps.meta.outputs.version_name }} \
             -PVERSION_CODE=${{ steps.meta.outputs.version_code }} \
             -PGIT_SHA=${{ steps.meta.outputs.git_sha }} \
             -PBUILD_TIME=${{ steps.meta.outputs.build_time }}
+
+      - name: Generate changelog
+        shell: bash
+        run: |
+          mkdir -p dist
+
+          CURRENT_TAG="${{ steps.tag.outputs.value }}"
+          PREV_TAG=$(git tag --list 'v*' --sort=-version:refname | grep -vx "$CURRENT_TAG" | head -n 1 || true)
+
+          {
+            echo "# Changelog"
+            echo
+            echo "## $CURRENT_TAG"
+            echo
+            echo "- Build time: ${{ steps.meta.outputs.build_time }}"
+            echo "- Commit: ${GITHUB_SHA::7}"
+            echo
+
+            if [ -n "$PREV_TAG" ]; then
+              echo "### Changes since $PREV_TAG"
+              git log --no-merges --pretty=format:'- %s (%h)' "$PREV_TAG..$CURRENT_TAG"
+            else
+              echo "### Initial release commits"
+              git log --no-merges --pretty=format:'- %s (%h)' --max-count=20 "$CURRENT_TAG"
+            fi
+          } > dist/changelog.md
 
       - name: Prepare APK artifact
         id: artifact
@@ -136,7 +188,7 @@ jobs:
         with:
           tag_name: ${{ steps.tag.outputs.value }}
           name: ${{ steps.tag.outputs.value }}
-          generate_release_notes: true
+          body_path: dist/changelog.md
           files: ${{ steps.artifact.outputs.path }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

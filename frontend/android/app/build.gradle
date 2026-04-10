@@ -5,6 +5,11 @@ def ciVersionCodeRaw = (project.findProperty('VERSION_CODE') ?: '1').toString()
 def ciGitSha = (project.findProperty('GIT_SHA') ?: 'dev').toString()
 def ciBuildTime = (project.findProperty('BUILD_TIME') ?: 'local').toString()
 def ciVersionCode = ciVersionCodeRaw ==~ /^\d+$/ ? ciVersionCodeRaw.toInteger() : 1
+def releaseStoreFile = project.findProperty('RELEASE_STORE_FILE')?.toString()
+def releaseStorePassword = project.findProperty('RELEASE_STORE_PASSWORD')?.toString()
+def releaseKeyAlias = (project.findProperty('RELEASE_KEY_ALIAS') ?: 'lvshujun').toString()
+def releaseKeyPassword = project.findProperty('RELEASE_KEY_PASSWORD')?.toString()
+def hasReleaseSigning = releaseStoreFile && releaseStorePassword && releaseKeyAlias && releaseKeyPassword
 
 android {
     namespace = "io.ionic.starter"
@@ -28,11 +33,22 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    signingConfigs {
+        release {
+            if (hasReleaseSigning) {
+                storeFile file(releaseStoreFile)
+                storePassword releaseStorePassword
+                keyAlias releaseKeyAlias
+                keyPassword releaseKeyPassword
+            }
+        }
+    }
     buildFeatures {
         buildConfig true
     }
     buildTypes {
         release {
+            signingConfig signingConfigs.release
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
