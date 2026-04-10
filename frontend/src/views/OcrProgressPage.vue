@@ -1,5 +1,5 @@
 <template>
-  <section class="app-page ocr-page" :class="{ 'is-dark': resolvedTheme === 'dark' }">
+  <section class="app-page app-inner-page ocr-page" :class="{ 'is-dark': resolvedTheme === 'dark' }">
     <header class="ocr-header">
       <div class="ocr-badge">
         <ScanSearch class="h-4 w-4" />
