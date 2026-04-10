@@ -1,0 +1,109 @@
+name: Release Android APK
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version tag (example: v1.2.3)"
+        required: true
+        type: string
+
+jobs:
+  release-apk:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve release tag
+        id: tag
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG="${{ inputs.version }}"
+          else
+            TAG="${GITHUB_REF_NAME}"
+          fi
+
+          if ! [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]; then
+            echo "Invalid version tag: $TAG"
+            echo "Expected format: v1.2.3"
+            exit 1
+          fi
+
+          echo "value=$TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Create tag for manual release
+        if: github.event_name == 'workflow_dispatch'
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -f "${{ steps.tag.outputs.value }}" "${{ github.sha }}"
+          git push origin "refs/tags/${{ steps.tag.outputs.value }}" --force
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Build web assets
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
+
+      - name: Sync Capacitor Android project
+        working-directory: frontend
+        run: npx cap sync android
+
+      - name: Build release APK
+        working-directory: frontend/android
+        run: ./gradlew assembleRelease
+
+      - name: Prepare APK artifact
+        id: artifact
+        shell: bash
+        run: |
+          SRC="frontend/android/app/build/outputs/apk/release/app-release.apk"
+          if [ ! -f "$SRC" ]; then
+            SRC="frontend/android/app/build/outputs/apk/release/app-release-unsigned.apk"
+          fi
+
+          if [ ! -f "$SRC" ]; then
+            echo "Release APK not found"
+            exit 1
+          fi
+
+          OUT_DIR="dist"
+          mkdir -p "$OUT_DIR"
+          OUT_FILE="latex-qapp-${{ steps.tag.outputs.value }}.apk"
+          cp "$SRC" "$OUT_DIR/$OUT_FILE"
+          echo "path=$OUT_DIR/$OUT_FILE" >> "$GITHUB_OUTPUT"
+          echo "name=$OUT_FILE" >> "$GITHUB_OUTPUT"
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag.outputs.value }}
+          name: ${{ steps.tag.outputs.value }}
+          generate_release_notes: true
+          files: ${{ steps.artifact.outputs.path }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
