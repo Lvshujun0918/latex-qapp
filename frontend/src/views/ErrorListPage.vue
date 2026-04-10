@@ -23,10 +23,6 @@
 
     <div class="toolbar">
       <Input v-model="keyword" placeholder="搜索 LaTeX 题目" />
-      <Button :disabled="isGenerating || selectionMode" @click="openSourceDialog">
-        <Camera class="mr-2 h-4 w-4" />
-        {{ isGenerating ? '识别中...' : '拍照录题' }}
-      </Button>
     </div>
 
     <div v-if="selectionMode" class="select-toolbar app-soft-card">
