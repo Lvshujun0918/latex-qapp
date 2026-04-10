@@ -27,19 +27,51 @@
         </div>
 
         <div class="action-row">
-          <a
-            v-if="pdfUrl"
-            class="download-link"
-            :href="pdfUrl"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            下载 PDF 文件
-          </a>
+          <template v-if="pdfUrl">
+            <Button
+              v-if="isNativePlatform"
+              class="download-link"
+              :disabled="saving"
+              @click="savePdfNative"
+            >
+              {{ saving ? '保存中...' : '保存到手机' }}
+            </Button>
+
+            <Button
+              v-if="isNativePlatform"
+              variant="outline"
+              :disabled="openingNative"
+              @click="openPdfNative"
+            >
+              {{ openingNative ? '打开中...' : '原生打开 PDF' }}
+            </Button>
+
+            <a
+              v-if="!isNativePlatform"
+              class="download-link"
+              :href="pdfUrl"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              下载 PDF 文件
+            </a>
+          </template>
+
           <Button v-else variant="outline" :disabled="loading" @click="fetchJob">刷新状态</Button>
         </div>
 
+        <p v-if="saveMessage" class="save-message">{{ saveMessage }}</p>
+
         <p v-if="errorMessage" class="error">{{ errorMessage }}</p>
+      </CardContent>
+    </Card>
+
+    <Card v-if="pdfUrl" class="app-page-shell preview-shell">
+      <CardHeader>
+        <CardTitle>PDF 预览</CardTitle>
+      </CardHeader>
+      <CardContent class="preview-content">
+        <VuePdfEmbed :source="pdfUrl" class="pdf-preview" />
       </CardContent>
     </Card>
 
@@ -69,24 +101,36 @@
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { Capacitor } from '@capacitor/core';
+import VuePdfEmbed from 'vue-pdf-embed';
+import { GlobalWorkerOptions } from 'pdfjs-dist';
+import PdfWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import { useRoute } from 'vue-router';
 import { useRouter } from 'vue-router';
 import { useTheme } from '@/composables/useTheme';
 import { getPdfJob } from '@/services/pdf';
+import { openPdfFromLocalUri, saveRemotePdfToDevice } from '@/services/pdf-native';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+
+GlobalWorkerOptions.workerSrc = PdfWorker;
 
 const route = useRoute();
 const router = useRouter();
 const { resolvedTheme } = useTheme();
 const loading = ref(false);
+const saving = ref(false);
+const openingNative = ref(false);
 const errorMessage = ref('');
+const saveMessage = ref('');
 const jobStatus = ref('queued');
 const jobMessage = ref('');
 const pdfPath = ref('');
 const selectedCount = ref(0);
+const savedPdfUri = ref('');
 const questionList = ref<Array<{ id: number; index: number; title: string; subject: string; question_type: string }>>([]);
 let pollTimer: number | null = null;
+const isNativePlatform = Capacitor.isNativePlatform();
 
 const pdfUrl = computed(() => {
   if (!pdfPath.value) {
@@ -134,6 +178,7 @@ async function fetchJob() {
   loading.value = true;
   try {
     errorMessage.value = '';
+    saveMessage.value = '';
     const jobId = String(route.params.jobId || '');
     const res = await getPdfJob(jobId);
     const payload = res?.data ?? res ?? {};
@@ -159,6 +204,47 @@ async function fetchJob() {
     errorMessage.value = error?.response?.data?.error || error?.message || '获取任务状态失败';
   } finally {
     loading.value = false;
+  }
+}
+
+async function savePdfNative() {
+  if (!pdfUrl.value) {
+    return;
+  }
+
+  saving.value = true;
+  try {
+    errorMessage.value = '';
+    const jobId = String(route.params.jobId || 'pdf-job');
+    const result = await saveRemotePdfToDevice(pdfUrl.value, `latex-qapp-${jobId}`);
+    savedPdfUri.value = result.uri;
+    saveMessage.value = `PDF 已保存：${result.fileName}`;
+  } catch (error: any) {
+    errorMessage.value = error?.message || '保存 PDF 失败';
+  } finally {
+    saving.value = false;
+  }
+}
+
+async function openPdfNative() {
+  if (!pdfUrl.value) {
+    return;
+  }
+
+  openingNative.value = true;
+  try {
+    errorMessage.value = '';
+    if (!savedPdfUri.value) {
+      const jobId = String(route.params.jobId || 'pdf-job');
+      const result = await saveRemotePdfToDevice(pdfUrl.value, `latex-qapp-${jobId}`);
+      savedPdfUri.value = result.uri;
+      saveMessage.value = `PDF 已保存：${result.fileName}`;
+    }
+    await openPdfFromLocalUri(savedPdfUri.value);
+  } catch (error: any) {
+    errorMessage.value = error?.message || '打开 PDF 失败';
+  } finally {
+    openingNative.value = false;
   }
 }
 
@@ -291,6 +377,7 @@ function goBack() {
   align-items: center;
   gap: 10px;
   justify-content: center;
+  flex-wrap: wrap;
 }
 
 .download-link {
@@ -321,6 +408,29 @@ function goBack() {
   margin: 0;
   color: #dc2626;
   font-size: 13px;
+}
+
+.save-message {
+  margin: 0;
+  font-size: 13px;
+  color: #047857;
+  text-align: center;
+}
+
+.preview-shell {
+  overflow: hidden;
+}
+
+.preview-content {
+  padding: 0;
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.pdf-preview {
+  width: 100%;
 }
 
 .tips-content {
@@ -373,6 +483,15 @@ function goBack() {
 
 .is-dark .success-subtitle {
   color: #cbd5e1;
+}
+
+.is-dark .save-message {
+  color: #6ee7b7;
+}
+
+.is-dark .preview-content {
+  border-color: rgba(148, 163, 184, 0.24);
+  background: rgba(15, 23, 42, 0.7);
 }
 
 .is-dark .info-item {
