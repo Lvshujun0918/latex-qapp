@@ -60,6 +60,10 @@ const routes: Array<RouteRecordRaw> = [
     path: '/review/session/:id',
     component: () => import('@/views/ReviewPracticePage.vue'),
   },
+  {
+    path: '/profile/about',
+    component: () => import('@/views/AboutPage.vue'),
+  },
 ];
 
 const router = createRouter({
