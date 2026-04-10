@@ -142,76 +142,91 @@ func (s *AIService) generateLatexDraftStreamWithOptions(ctx context.Context, ima
 		return emit(evt)
 	}
 
-	// Build Graph
-	graph, err := s.BuildVisionGraph(ctx, opts.IncludeSolution)
-	if err != nil {
-		_ = emitEvent(&VisionStreamEvent{Stage: "error", Error: err.Error(), Done: true})
-		return nil, err
-	}
-
-	// Compile Graph to Runnable
-	runnable, err := graph.Compile(ctx)
-	if err != nil {
-		_ = emitEvent(&VisionStreamEvent{Stage: "error", Error: err.Error(), Done: true})
-		return nil, err
-	}
-
 	// Create initial state
 	initialState := &PipelineState{
 		ImageBase64: imageBase64,
 		Trace:       []string{},
 	}
 
-	// Run Graph
-	result, err := runnable.Invoke(ctx, initialState)
+	state, err := s.nodeClassifyImage(ctx, initialState)
 	if err != nil {
 		_ = emitEvent(&VisionStreamEvent{Stage: "error", Error: err.Error(), Done: true})
 		return nil, err
 	}
+	_ = emitEvent(&VisionStreamEvent{
+		Stage:        "classify",
+		Subject:      state.ClassifyOut.Subject,
+		Title:        state.ClassifyOut.Title,
+		QuestionType: state.ClassifyOut.QuestionType,
+		AgentTrace:   append([]string{}, state.Trace...),
+		Done:         true,
+	})
 
-	// Emit streaming events at key stages
-	if result.Subject != "" {
-		_ = emitEvent(&VisionStreamEvent{
-			Stage:        "classify",
-			Subject:      result.Subject,
-			Title:        result.Title,
-			QuestionType: result.QuestionType,
-			AgentTrace:   result.AgentTrace,
-		})
+	state, err = s.nodeGenerateLatex(ctx, state)
+	if err != nil {
+		_ = emitEvent(&VisionStreamEvent{Stage: "error", Error: err.Error(), Done: true})
+		return nil, err
 	}
+	_ = emitEvent(&VisionStreamEvent{
+		Stage:        "latex",
+		Subject:      state.ClassifyOut.Subject,
+		Title:        state.ClassifyOut.Title,
+		QuestionType: state.ClassifyOut.QuestionType,
+		QuestionJSON: state.LatexOut,
+		LatexSource:  func() string { b, _ := json.Marshal(state.LatexOut); return string(b) }(),
+		RawContent:   state.RawContent,
+		AgentTrace:   append([]string{}, state.Trace...),
+		Done:         true,
+	})
 
-	if result.QuestionJSON != nil {
-		_ = emitEvent(&VisionStreamEvent{
-			Stage:        "latex",
-			Subject:      result.Subject,
-			Title:        result.Title,
-			QuestionType: result.QuestionType,
-			QuestionJSON: result.QuestionJSON,
-			LatexSource:  result.LatexSource,
-			LatexAnswer:  result.LatexAnswer,
-			RawContent:   result.RawContent,
-			AgentTrace:   result.AgentTrace,
-		})
+	state, err = s.nodeGenerateTags(ctx, state)
+	if err != nil {
+		_ = emitEvent(&VisionStreamEvent{Stage: "error", Error: err.Error(), Done: true})
+		return nil, err
 	}
+	_ = emitEvent(&VisionStreamEvent{
+		Stage: "tags",
+		Tags: func() []string {
+			if state.TagsOut != nil {
+				return state.TagsOut.Tags
+			}
+			return nil
+		}(),
+		AgentTrace: append([]string{}, state.Trace...),
+		Done:       true,
+	})
 
-	if result.Tags != nil {
+	if opts.IncludeSolution {
+		state, err = s.nodeSolveQuestion(ctx, state)
+		if err != nil {
+			_ = emitEvent(&VisionStreamEvent{Stage: "error", Error: err.Error(), Done: true})
+			return nil, err
+		}
 		_ = emitEvent(&VisionStreamEvent{
-			Stage:      "tags",
-			Tags:       result.Tags,
-			AgentTrace: result.AgentTrace,
-		})
-	}
-
-	if opts.IncludeSolution && result.LatexSolution != "" {
-		_ = emitEvent(&VisionStreamEvent{
-			Stage:         "solve",
-			LatexAnswer:   result.LatexAnswer,
-			LatexSolution: result.LatexSolution,
-			AgentTrace:    result.AgentTrace,
+			Stage: "solve",
+			LatexAnswer: func() string {
+				if state.SolveOut != nil {
+					return state.SolveOut.LatexAnswer
+				}
+				return ""
+			}(),
+			LatexSolution: func() string {
+				if state.SolveOut != nil {
+					return state.SolveOut.LatexSolution
+				}
+				return ""
+			}(),
+			AgentTrace: append([]string{}, state.Trace...),
+			Done:       true,
 		})
 	}
 
 	// Emit final event
+	result, err := nodeMergeFinalResult(ctx, state)
+	if err != nil {
+		_ = emitEvent(&VisionStreamEvent{Stage: "error", Error: err.Error(), Done: true})
+		return nil, err
+	}
 	_ = emitEvent(&VisionStreamEvent{
 		Stage:         "final",
 		Subject:       result.Subject,
