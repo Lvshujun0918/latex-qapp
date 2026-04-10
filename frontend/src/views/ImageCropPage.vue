@@ -1,7 +1,7 @@
 <template>
   <section class="app-page app-inner-page page-wrap pt-8 crop-page" :class="{ 'is-dark': resolvedTheme === 'dark' }">
     <header class="app-page-header page-header">
-      <Button variant="outline" size="icon-sm" class="app-header-back" @click="goBack" aria-label="返回上一级"><</Button>
+      <Button variant="outline" size="icon-sm" class="app-header-back mr-4" @click="goBack" aria-label="返回上一级"><</Button>
       <span class="app-kicker">Crop Stage</span>
       <h1>裁剪题目</h1>
       <p>拖动裁剪框，把题目内容尽量完整框住后再进入识别。</p>

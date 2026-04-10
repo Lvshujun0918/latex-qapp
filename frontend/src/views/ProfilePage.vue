@@ -44,6 +44,15 @@
         <Switch :model-value="followSystemEnabled" @update:model-value="setFollowSystem" />
       </div>
     </div>
+
+    <button class="about-entry app-interactive-surface" type="button" @click="goAbout">
+      <div class="about-entry-text">
+        <p>关于应用</p>
+        <span>版本信息、数据说明与产品介绍</span>
+      </div>
+      <ChevronRight class="h-4 w-4 about-entry-arrow" />
+    </button>
+
     <Button variant="destructive" class="logout-btn" @click="logout">退出登录</Button>
   </section>
 </template>
@@ -51,13 +60,13 @@
 <script setup lang="ts">
 import { computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
+import { ChevronRight } from 'lucide-vue-next';
 import { useAuthStore } from '@/stores/auth';
 import { useRecordStore } from '@/stores/record';
 import { useTheme } from '@/composables/useTheme';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
 const authStore = useAuthStore();
 const recordStore = useRecordStore();
@@ -100,6 +109,10 @@ function setFollowSystem(checked: boolean) {
 onMounted(() => {
   recordStore.reload();
 });
+
+function goAbout() {
+  router.push('/profile/about');
+}
 
 function logout() {
   authStore.logout();
@@ -242,6 +255,41 @@ function logout() {
   color: #64748b;
 }
 
+.about-entry {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 14px;
+  background: rgba(248, 250, 252, 0.72);
+  padding: 12px;
+  text-align: left;
+}
+
+.about-entry-text {
+  min-width: 0;
+}
+
+.about-entry-text p {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.about-entry-text span {
+  margin-top: 2px;
+  display: block;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.about-entry-arrow {
+  color: #64748b;
+}
+
 .actions-wrap {
   display: grid;
   gap: 10px;
@@ -289,11 +337,25 @@ function logout() {
   background: rgba(15, 23, 42, 0.5);
 }
 
+.is-dark .about-entry {
+  border-color: rgba(148, 163, 184, 0.3);
+  background: rgba(15, 23, 42, 0.5);
+}
+
 .is-dark .theme-switch-text p {
   color: #f8fafc;
 }
 
 .is-dark .theme-switch-text span {
+  color: #94a3b8;
+}
+
+.is-dark .about-entry-text p {
+  color: #f8fafc;
+}
+
+.is-dark .about-entry-text span,
+.is-dark .about-entry-arrow {
   color: #94a3b8;
 }
 </style>

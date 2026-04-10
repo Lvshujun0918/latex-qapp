@@ -1,7 +1,7 @@
 <template>
   <section class="app-page app-inner-page page-wrap pt-8" :class="{ 'is-dark': resolvedTheme === 'dark' }">
     <header class="app-page-header page-header">
-      <Button variant="outline" size="icon-sm" class="app-header-back" @click="goBack" aria-label="返回上一级"><</Button>
+      <Button variant="outline" size="icon-sm" class="app-header-back mr-4" @click="goBack" aria-label="返回上一级"><</Button>
       <span class="app-kicker">Task Status</span>
       <h1>PDF 结果</h1>
       <p>任务完成，可直接下载文件。</p>

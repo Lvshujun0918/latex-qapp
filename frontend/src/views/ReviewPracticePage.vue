@@ -1,7 +1,7 @@
 <template>
   <section class="app-page app-inner-page page-wrap" :class="{ 'is-dark': resolvedTheme === 'dark' }" v-if="record">
     <header class="app-page-header page-header">
-      <Button variant="outline" size="icon-sm" class="app-header-back" @click="goBack" aria-label="返回上一级"><</Button>
+      <Button variant="outline" size="icon-sm" class="app-header-back mr-4" @click="goBack" aria-label="返回上一级"><</Button>
       <span class="app-kicker">Practice Loop</span>
       <h1>复习作答</h1>
       <p>先独立解题，再看答案并判断对错，系统会更新下次复习节奏。</p>
