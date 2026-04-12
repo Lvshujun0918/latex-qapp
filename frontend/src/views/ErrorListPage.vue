@@ -1,9 +1,9 @@
 <template>
   <section class="app-page page-wrap" :class="{ 'is-dark': resolvedTheme === 'dark' }">
     <header class="app-page-header page-header">
-      <span class="app-kicker">Collection</span>
+      <span class="app-kicker">Parent Console</span>
       <h1>错题</h1>
-      <p>记录、检索并持续迭代你的 LaTeX 错题集。</p>
+      <p>帮助家长记录、检索并持续迭代孩子的 LaTeX 错题集。</p>
     </header>
 
     <Alert v-if="errorMessage" variant="destructive">
@@ -13,8 +13,8 @@
 
     <Card class="hero-card app-page-shell">
       <CardHeader>
-        <CardDescription>AI 错题本</CardDescription>
-        <CardTitle>今天继续攻克薄弱点</CardTitle>
+        <CardDescription>家长陪学面板</CardDescription>
+        <CardTitle>今天优先攻克孩子的薄弱点</CardTitle>
       </CardHeader>
       <CardContent>
         当前共 {{ records.length }} 道题，优先复习高频错因与低掌握度题目。
@@ -118,7 +118,9 @@ import { useRouter } from 'vue-router';
 import { Camera, ChevronRight, Sparkles, Trash2 } from 'lucide-vue-next';
 import ImageSourceDialog from '@/components/ImageSourceDialog.vue';
 import { useTheme } from '@/composables/useTheme';
+import { upsertPdfExportHistory } from '@/services/pdf-history';
 import { exportPdfByRecordIds } from '@/services/pdf';
+import { useAuthStore } from '@/stores/auth';
 import { useRecordStore } from '@/stores/record';
 import { pickImageAsBase64 } from '@/services/ai';
 import { saveImagePayload } from '@/services/image-transfer';
@@ -130,6 +132,7 @@ import { Input } from '@/components/ui/input';
 
 const router = useRouter();
 const recordStore = useRecordStore();
+const authStore = useAuthStore();
 const { resolvedTheme } = useTheme();
 const { records } = storeToRefs(recordStore);
 const keyword = ref('');
@@ -343,10 +346,24 @@ async function exportSelectedPdf() {
   exportingPdf.value = true;
   try {
     const res = await exportPdfByRecordIds(selectedIds.value);
-    const jobId = res?.data?.jobId ?? res?.jobId;
+    const payload = res?.data ?? res ?? {};
+    const jobId = payload?.jobId;
     if (!jobId) {
       throw new Error('未获取到 PDF 任务号');
     }
+
+    upsertPdfExportHistory(
+      {
+        userId: authStore.userId,
+        username: authStore.username,
+      },
+      {
+        jobId: String(jobId),
+        pdfFileUrl: String(payload?.pdf_file_url || ''),
+        selectedCount: Number(payload?.selected_count || selectedIds.value.length),
+        source: 'errors',
+      },
+    );
 
     clearSelection();
     router.push(`/pdf/jobs/${jobId}`);

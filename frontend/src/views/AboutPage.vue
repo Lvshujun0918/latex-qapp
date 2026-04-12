@@ -12,7 +12,7 @@
                 <div class="hero-mark">LQ</div>
                 <div class="hero-text">
                     <h2>{{ appName }}</h2>
-                    <p>为 LaTeX 错题整理、回顾与强化练习而设计。</p>
+                    <p>面向家长的孩子错题整理、回顾与强化练习工具。</p>
                 </div>
             </CardContent>
         </Card>
@@ -37,9 +37,9 @@
             </CardHeader>
             <CardContent>
                 <ul class="about-list">
-                    <li>让错题录入、结构化和复习闭环更快完成。</li>
-                    <li>把题目、答案、错因统一成可追踪的学习记录。</li>
-                    <li>在移动端保持清晰、轻量、可回溯的使用体验。</li>
+                    <li>帮助家长高效完成孩子错题录入、结构化和复习闭环。</li>
+                    <li>把题目、答案、错因统一成可追踪的家庭学习记录。</li>
+                    <li>在移动端提供清晰、轻量、可回溯的陪学体验。</li>
                 </ul>
             </CardContent>
         </Card>
@@ -51,7 +51,7 @@
             </CardHeader>
             <CardContent class="policy-text">
                 <p>仅在题目处理流程中使用你主动选择的图片内容。</p>
-                <p>账号与学习记录用于提供同步与统计能力，不用于广告投放。</p>
+                <p>家长账号与学习记录仅用于同步、导出和统计，不用于广告投放。</p>
             </CardContent>
         </Card>
 
