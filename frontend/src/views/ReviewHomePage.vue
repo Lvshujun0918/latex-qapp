@@ -7,14 +7,14 @@
                 帮助家长按 {{ EBBINGHAUS_INTERVALS.join(' / ') }} 天节奏安排孩子复习，支持到期与提前复习。
             </p>
         </header>
-
+        
         <div class="review-export-bar app-soft-card">
             <div class="review-export-copy">
                 <p>今日待复习导出</p>
                 <span>一键导出今日应复习题单，方便打印或分享给孩子。</span>
             </div>
-            <Button size="sm" :disabled="!dueToday.length || exportingDuePdf" @click="exportDueTodayPdf">
-                {{ exportingDuePdf ? '生成中...' : '一键导出今日待复习' }}
+            <Button size="sm" :disabled="!dueToday.length" @click="goExportDueToday">
+                一键导出
             </Button>
         </div>
 
@@ -99,23 +99,18 @@ import { storeToRefs } from 'pinia';
 import { useRouter } from 'vue-router';
 import { Brain, CalendarCheck2, Clock3, NotebookPen } from 'lucide-vue-next';
 import { useTheme } from '@/composables/useTheme';
-import { upsertPdfExportHistory } from '@/services/pdf-history';
-import { exportPdfByRecordIds } from '@/services/pdf';
-import { useAuthStore } from '@/stores/auth';
-import { useRecordStore } from '@/stores/record';
 import { Button } from '@/components/ui/button';
+import { useRecordStore } from '@/stores/record';
 
 type ReviewTab = 'due' | 'manual';
 
 const EBBINGHAUS_INTERVALS = [1, 2, 4, 7, 15, 30];
 
 const router = useRouter();
-const authStore = useAuthStore();
 const recordStore = useRecordStore();
 const { records } = storeToRefs(recordStore);
 const { resolvedTheme } = useTheme();
 const activeTab = ref<ReviewTab>('due');
-const exportingDuePdf = ref(false);
 
 const scheduleRows = computed(() => {
     const now = Date.now();
@@ -182,40 +177,18 @@ function goPractice(id: number) {
     router.push(`/review/session/${id}`);
 }
 
-async function exportDueTodayPdf() {
-    if (!dueToday.value.length || exportingDuePdf.value) {
+function goExportDueToday() {
+    if (!dueToday.value.length) {
         return;
     }
 
-    exportingDuePdf.value = true;
-    try {
-        const recordIds = dueToday.value.map((item) => item.id);
-        const res = await exportPdfByRecordIds(recordIds);
-        const payload = res?.data ?? res ?? {};
-        const jobId = String(payload?.jobId || '');
-        if (!jobId) {
-            throw new Error('未获取到 PDF 任务号');
-        }
-
-        upsertPdfExportHistory(
-            {
-                userId: authStore.userId,
-                username: authStore.username,
-            },
-            {
-                jobId,
-                pdfFileUrl: String(payload?.pdf_file_url || ''),
-                selectedCount: Number(payload?.selected_count || recordIds.length),
-                source: 'review',
-            },
-        );
-
-        router.push(`/pdf/jobs/${jobId}`);
-    } catch (error: any) {
-        window.alert(error?.message || '导出失败，请重试');
-    } finally {
-        exportingDuePdf.value = false;
-    }
+    const ids = dueToday.value.map((item) => item.id).join(',');
+    router.push({
+        path: '/tabs/pdfs',
+        query: {
+            prefill: ids,
+        },
+    });
 }
 
 function formatSubject(subject?: string) {
