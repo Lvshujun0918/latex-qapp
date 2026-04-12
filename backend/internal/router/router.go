@@ -80,7 +80,9 @@ func New(
 		pdf := api.Group("/pdf", middleware.JWTAuth(cfg.JWTSecret))
 		{
 			pdf.POST("/export", pdfHandler.Export)
+			pdf.GET("/jobs", pdfHandler.ListJobs)
 			pdf.GET("/jobs/:jobId", pdfHandler.JobDetail)
+			pdf.POST("/jobs/:jobId/questions/:recordId/review", pdfHandler.UpdateQuestionReview)
 		}
 	}
 
