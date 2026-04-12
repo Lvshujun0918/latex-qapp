@@ -39,7 +39,7 @@
 
       <RouterLink class="tab-link" :class="{ active: isActive('/tabs/profile') }" to="/tabs/profile">
         <CircleUserRound class="tab-icon" />
-        <span>我的</span>
+        <span>家长</span>
       </RouterLink>
     </nav>
 
