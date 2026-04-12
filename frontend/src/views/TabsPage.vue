@@ -1,12 +1,5 @@
 <template>
   <div class="tabs-layout" :class="{ 'is-dark': resolvedTheme === 'dark' }">
-    <section v-if="errorMessage" class="app-page error-wrap">
-      <Alert variant="destructive">
-        <AlertTitle>拍照生成功能异常</AlertTitle>
-        <AlertDescription>{{ errorMessage }}</AlertDescription>
-      </Alert>
-    </section>
-
     <main class="tabs-content">
       <RouterView />
     </main>
@@ -22,15 +15,10 @@
         <span>复习</span>
       </RouterLink>
 
-      <button
-        class="tab-create"
-        :class="{ 'is-generating': isGenerating }"
-        :disabled="isGenerating"
-        type="button"
-        @click="openSourceDialog"
-      >
-        <PlusCircle class="create-icon" />
-      </button>
+      <RouterLink class="tab-link" :class="{ active: isActive('/tabs/pdfs') }" to="/tabs/pdfs">
+        <FileText class="tab-icon" />
+        <span>题单</span>
+      </RouterLink>
 
       <RouterLink class="tab-link" :class="{ active: isActive('/tabs/stats') }" to="/tabs/stats">
         <BarChart3 class="tab-icon" />
@@ -43,74 +31,19 @@
       </RouterLink>
     </nav>
 
-    <div v-if="isGenerating" class="loading-overlay">
-      <div class="loading-card">
-        <div class="loader" />
-        <p>{{ generatingMessage }}</p>
-      </div>
-    </div>
-
-    <ImageSourceDialog
-      :open="sourceDialogOpen"
-      @update:open="(val) => (sourceDialogOpen = val)"
-      @select="handleCreateClick"
-    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
-import { useRoute, useRouter, RouterLink, RouterView } from 'vue-router';
-import { BarChart3, BookOpen, CircleUserRound, GraduationCap, PlusCircle } from 'lucide-vue-next';
-import ImageSourceDialog from '@/components/ImageSourceDialog.vue';
+import { useRoute, RouterLink, RouterView } from 'vue-router';
+import { BarChart3, BookOpen, CircleUserRound, FileText, GraduationCap } from 'lucide-vue-next';
 import { useTheme } from '@/composables/useTheme';
-import { pickImageAsBase64 } from '@/services/ai';
-import { saveImagePayload } from '@/services/image-transfer';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 const route = useRoute();
-const router = useRouter();
 const { resolvedTheme } = useTheme();
-const isGenerating = ref(false);
-const generatingMessage = ref('正在识别题目与标签...');
-const sourceDialogOpen = ref(false);
-const errorMessage = ref('');
 
 function isActive(path: string) {
   return route.path.startsWith(path);
-}
-
-function openSourceDialog() {
-  if (isGenerating.value) {
-    return;
-  }
-
-  errorMessage.value = '';
-  sourceDialogOpen.value = true;
-}
-
-async function handleCreateClick(source: 'camera' | 'album' | 'file') {
-  if (isGenerating.value) {
-    return;
-  }
-
-  try {
-    errorMessage.value = '';
-    isGenerating.value = true;
-    generatingMessage.value = '正在准备图片...';
-
-    const imageBase64 = await pickImageAsBase64(source);
-    const imageKey = saveImagePayload(imageBase64);
-    router.push({
-      path: '/image/crop',
-      query: { key: imageKey },
-    });
-  } catch (error: any) {
-    errorMessage.value = error?.message || '拍照或识别失败，请重试。';
-  } finally {
-    isGenerating.value = false;
-    generatingMessage.value = '正在识别题目与标签...';
-  }
 }
 </script>
 
@@ -136,13 +69,6 @@ async function handleCreateClick(source: 'camera' | 'album' | 'file') {
   padding-top: env(safe-area-inset-top, 0px);
   padding-left: 16px;
   padding-right: 16px;
-}
-
-.error-wrap {
-  position: sticky;
-  top: calc(8px + env(safe-area-inset-top, 0px));
-  z-index: 30;
-  padding-top: 10px;
 }
 
 .main-tabbar {
@@ -205,101 +131,5 @@ async function handleCreateClick(source: 'camera' | 'album' | 'file') {
 .tab-icon {
   width: 18px;
   height: 18px;
-}
-
-.tab-create {
-  border: none;
-  background: transparent;
-  display: grid;
-  place-items: center;
-  cursor: pointer;
-}
-
-.tab-create:disabled {
-  cursor: not-allowed;
-}
-
-.create-icon {
-  width: 42px;
-  height: 42px;
-  color: #ffffff;
-  border-radius: 999px;
-  padding: 8px;
-  background:
-    radial-gradient(circle at 30% 22%, rgba(255, 255, 255, 0.4), rgba(255, 255, 255, 0) 45%),
-    linear-gradient(160deg, #5aa6ff 0%, #1f7aff 62%, #1669df 100%);
-  box-shadow:
-    0 8px 20px rgba(31, 122, 255, 0.35),
-    inset 0 1px 0 rgba(255, 255, 255, 0.42);
-}
-
-.tab-create.is-generating .create-icon {
-  animation: generating-pulse 1.1s ease-in-out infinite;
-}
-
-.loading-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(15, 23, 42, 0.32);
-  backdrop-filter: blur(2px);
-  display: grid;
-  place-items: center;
-  z-index: 50;
-}
-
-.loading-card {
-  min-width: 220px;
-  background: rgba(255, 255, 255, 0.95);
-  border: 1px solid rgba(148, 163, 184, 0.4);
-  border-radius: 16px;
-  padding: 20px 16px;
-  text-align: center;
-  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.2);
-}
-
-.tabs-layout.is-dark .loading-card {
-  background: rgba(15, 23, 42, 0.9);
-  border: 1px solid rgba(148, 163, 184, 0.32);
-  box-shadow: 0 12px 32px rgba(2, 6, 23, 0.5);
-}
-
-.loading-card p {
-  margin: 10px 0 0;
-  font-size: 13px;
-  color: #334155;
-}
-
-.tabs-layout.is-dark .loading-card p {
-  color: #cbd5e1;
-}
-
-.loader {
-  width: 26px;
-  height: 26px;
-  border: 3px solid rgba(37, 99, 235, 0.2);
-  border-top-color: #2563eb;
-  border-radius: 50%;
-  margin: 0 auto;
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-@keyframes generating-pulse {
-  0% {
-    transform: scale(1);
-  }
-
-  50% {
-    transform: scale(1.08);
-  }
-
-  100% {
-    transform: scale(1);
-  }
 }
 </style>
