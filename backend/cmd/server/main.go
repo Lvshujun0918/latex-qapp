@@ -26,7 +26,7 @@ func main() {
 	recordHandler := handler.NewRecordHandler(recordService)
 	aiHandler := handler.NewAIHandler(aiService)
 	statsHandler := handler.NewStatsHandler()
-	pdfHandler := handler.NewPDFHandler(recordService)
+	pdfHandler := handler.NewPDFHandler(database, recordService)
 
 	r := router.New(cfg, authHandler, recordHandler, aiHandler, statsHandler, pdfHandler)
 
