@@ -4,9 +4,19 @@
             <span class="app-kicker">Daily Focus</span>
             <h1>复习</h1>
             <p>
-                间隔节奏 {{ EBBINGHAUS_INTERVALS.join(' / ') }} 天，支持到期复习与手动提前复习。
+                帮助家长按 {{ EBBINGHAUS_INTERVALS.join(' / ') }} 天节奏安排孩子复习，支持到期与提前复习。
             </p>
         </header>
+
+        <div class="review-export-bar app-soft-card">
+            <div class="review-export-copy">
+                <p>今日待复习导出</p>
+                <span>一键导出今日应复习题单，方便打印或分享给孩子。</span>
+            </div>
+            <Button size="sm" :disabled="!dueToday.length || exportingDuePdf" @click="exportDueTodayPdf">
+                {{ exportingDuePdf ? '生成中...' : '一键导出今日待复习' }}
+            </Button>
+        </div>
 
         <div class="overview-grid" role="list" aria-label="复习概览">
             <button type="button" class="metric-pill" @click="activeTab = 'due'" role="listitem">
@@ -89,18 +99,23 @@ import { storeToRefs } from 'pinia';
 import { useRouter } from 'vue-router';
 import { Brain, CalendarCheck2, Clock3, NotebookPen } from 'lucide-vue-next';
 import { useTheme } from '@/composables/useTheme';
+import { upsertPdfExportHistory } from '@/services/pdf-history';
+import { exportPdfByRecordIds } from '@/services/pdf';
+import { useAuthStore } from '@/stores/auth';
 import { useRecordStore } from '@/stores/record';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 
 type ReviewTab = 'due' | 'manual';
 
 const EBBINGHAUS_INTERVALS = [1, 2, 4, 7, 15, 30];
 
 const router = useRouter();
+const authStore = useAuthStore();
 const recordStore = useRecordStore();
 const { records } = storeToRefs(recordStore);
 const { resolvedTheme } = useTheme();
 const activeTab = ref<ReviewTab>('due');
+const exportingDuePdf = ref(false);
 
 const scheduleRows = computed(() => {
     const now = Date.now();
@@ -167,6 +182,42 @@ function goPractice(id: number) {
     router.push(`/review/session/${id}`);
 }
 
+async function exportDueTodayPdf() {
+    if (!dueToday.value.length || exportingDuePdf.value) {
+        return;
+    }
+
+    exportingDuePdf.value = true;
+    try {
+        const recordIds = dueToday.value.map((item) => item.id);
+        const res = await exportPdfByRecordIds(recordIds);
+        const payload = res?.data ?? res ?? {};
+        const jobId = String(payload?.jobId || '');
+        if (!jobId) {
+            throw new Error('未获取到 PDF 任务号');
+        }
+
+        upsertPdfExportHistory(
+            {
+                userId: authStore.userId,
+                username: authStore.username,
+            },
+            {
+                jobId,
+                pdfFileUrl: String(payload?.pdf_file_url || ''),
+                selectedCount: Number(payload?.selected_count || recordIds.length),
+                source: 'review',
+            },
+        );
+
+        router.push(`/pdf/jobs/${jobId}`);
+    } catch (error: any) {
+        window.alert(error?.message || '导出失败，请重试');
+    } finally {
+        exportingDuePdf.value = false;
+    }
+}
+
 function formatSubject(subject?: string) {
     const value = String(subject || '').trim().toLowerCase();
     if (value === 'math' || value === '数学') return '数学';
@@ -196,6 +247,34 @@ function resultClass(result?: string) {
 
 .compact-header :deep(p) {
     margin-top: 4px;
+}
+
+.review-export-bar {
+    border: 1px solid rgba(148, 163, 184, 0.24);
+    border-radius: 14px;
+    padding: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.review-export-copy {
+    min-width: 0;
+}
+
+.review-export-copy p {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 700;
+    color: #0f172a;
+}
+
+.review-export-copy span {
+    margin-top: 2px;
+    display: block;
+    font-size: 12px;
+    color: #64748b;
 }
 
 .overview-grid {
@@ -412,7 +491,8 @@ button.metric-pill:hover {
 }
 
 .is-dark .metric-pill,
-.is-dark .review-item {
+.is-dark .review-item,
+.is-dark .review-export-bar {
     background: rgba(30, 41, 59, 0.94);
     border-color: rgba(148, 163, 184, 0.28);
 }
@@ -420,12 +500,14 @@ button.metric-pill:hover {
 .is-dark .pill-label,
 .is-dark .review-meta,
 .is-dark .progress-text,
-.is-dark .empty-tip {
+.is-dark .empty-tip,
+.is-dark .review-export-copy span {
     color: #cbd5e1;
 }
 
 .is-dark .pill-value,
-.is-dark .review-title {
+.is-dark .review-title,
+.is-dark .review-export-copy p {
     color: #f8fafc;
 }
 
