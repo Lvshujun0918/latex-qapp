@@ -70,6 +70,19 @@
                 <strong class="question-title">{{ question.title }}</strong>
               </div>
               <p class="question-meta">{{ question.subject || '未分类' }} · {{ question.question_type || '未标注题型' }}</p>
+              <div class="question-block">
+                <p class="question-block-title">题目</p>
+                <LatexView :source="toDisplayLatex(question.latex_source)" class="latex-embed" />
+              </div>
+              <div class="question-block">
+                <p class="question-block-title">参考答案</p>
+                <LatexView :source="question.latex_answer || '暂无答案'" class="latex-embed" />
+              </div>
+              <div class="review-action-row">
+                <span class="review-tag" :class="`is-${question.child_result || 'none'}`">{{ childResultText(question.child_result) }}</span>
+                <Button size="sm" :disabled="savingReview" @click="markChildResult(question.record_id || question.id, true)">孩子做对</Button>
+                <Button variant="destructive" size="sm" :disabled="savingReview" @click="markChildResult(question.record_id || question.id, false)">孩子做错</Button>
+              </div>
             </li>
           </ul>
         </div>
@@ -89,9 +102,10 @@ import { useRoute } from 'vue-router';
 import { useRouter } from 'vue-router';
 import { useTheme } from '@/composables/useTheme';
 import { upsertPdfExportHistory } from '@/services/pdf-history';
-import { getPdfJob } from '@/services/pdf';
+import { getPdfJob, updatePdfQuestionReview } from '@/services/pdf';
 import { openPdfFromLocalUri, saveRemotePdfToDevice } from '@/services/pdf-native';
 import { useAuthStore } from '@/stores/auth';
+import LatexView from '@/components/LatexView.vue';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
@@ -104,6 +118,7 @@ const { resolvedTheme } = useTheme();
 const loading = ref(false);
 const saving = ref(false);
 const openingNative = ref(false);
+const savingReview = ref(false);
 const errorMessage = ref('');
 const saveMessage = ref('');
 const jobStatus = ref('queued');
@@ -111,7 +126,17 @@ const jobMessage = ref('');
 const pdfPath = ref('');
 const selectedCount = ref(0);
 const savedPdfUri = ref('');
-const questionList = ref<Array<{ id: number; index: number; title: string; subject: string; question_type: string }>>([]);
+const questionList = ref<Array<{
+  id: number;
+  record_id: number;
+  index: number;
+  title: string;
+  subject: string;
+  question_type: string;
+  latex_source: string;
+  latex_answer: string;
+  child_result: string;
+}>>([]);
 let pollTimer: number | null = null;
 const isNativePlatform = Capacitor.isNativePlatform();
 
@@ -173,10 +198,14 @@ async function fetchJob() {
     questionList.value = Array.isArray(payload.questions)
       ? payload.questions.map((item: any, idx: number) => ({
           id: Number(item?.id ?? 0),
+          record_id: Number(item?.record_id ?? item?.id ?? 0),
           index: Number(item?.index ?? idx + 1),
           title: String(item?.title ?? '').trim() || `第 ${idx + 1} 题`,
           subject: String(item?.subject ?? '').trim(),
           question_type: String(item?.question_type ?? '').trim(),
+          latex_source: String(item?.latex_source ?? '').trim(),
+          latex_answer: String(item?.latex_answer ?? '').trim(),
+          child_result: String(item?.child_result ?? 'none').trim() || 'none',
         }))
       : [];
 
@@ -265,7 +294,65 @@ function goBack() {
     return;
   }
 
-  router.replace('/pdf/export');
+  router.replace('/tabs/pdfs');
+}
+
+async function markChildResult(recordId: number, isCorrect: boolean) {
+  if (!recordId || savingReview.value) {
+    return;
+  }
+
+  savingReview.value = true;
+  try {
+    errorMessage.value = '';
+    const jobId = String(route.params.jobId || '');
+    const res = await updatePdfQuestionReview(jobId, recordId, isCorrect);
+    const payload = res?.data ?? res ?? {};
+    questionList.value = Array.isArray(payload.questions)
+      ? payload.questions.map((item: any, idx: number) => ({
+          id: Number(item?.id ?? 0),
+          record_id: Number(item?.record_id ?? item?.id ?? 0),
+          index: Number(item?.index ?? idx + 1),
+          title: String(item?.title ?? '').trim() || `第 ${idx + 1} 题`,
+          subject: String(item?.subject ?? '').trim(),
+          question_type: String(item?.question_type ?? '').trim(),
+          latex_source: String(item?.latex_source ?? '').trim(),
+          latex_answer: String(item?.latex_answer ?? '').trim(),
+          child_result: String(item?.child_result ?? 'none').trim() || 'none',
+        }))
+      : questionList.value;
+    saveMessage.value = isCorrect ? '已登记：孩子做对' : '已登记：孩子做错';
+  } catch (error: any) {
+    errorMessage.value = error?.message || '记录结果失败';
+  } finally {
+    savingReview.value = false;
+  }
+}
+
+function toDisplayLatex(raw: string) {
+  const text = String(raw || '').trim();
+  if (!text) return '暂无题目';
+  try {
+    const data = JSON.parse(text);
+    if (!data || typeof data !== 'object') {
+      return text;
+    }
+    const stem = String((data as any).stem || '').trim();
+    const options = Array.isArray((data as any).options) ? (data as any).options : [];
+    const subQuestions = Array.isArray((data as any).sub_questions) ? (data as any).sub_questions : [];
+    const lines = [stem || '题目'];
+    options.forEach((item: string, idx: number) => lines.push(`${String.fromCharCode(65 + idx)}. ${item}`));
+    subQuestions.forEach((item: string, idx: number) => lines.push(`(${idx + 1}) ${item}`));
+    return lines.join('\n');
+  } catch {
+    return text;
+  }
+}
+
+function childResultText(result?: string) {
+  if (result === 'correct') return '孩子已做对';
+  if (result === 'wrong') return '孩子已做错';
+  return '待批改';
 }
 </script>
 
@@ -518,6 +605,8 @@ function goBack() {
   background: rgba(248, 250, 252, 0.75);
   border-radius: 12px;
   padding: 9px 11px;
+  display: grid;
+  gap: 8px;
 }
 
 .question-main {
@@ -543,6 +632,47 @@ function goBack() {
   color: #64748b;
 }
 
+.question-block {
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 10px;
+  padding: 8px;
+  background: rgba(248, 250, 252, 0.68);
+}
+
+.question-block-title {
+  margin: 0 0 6px;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.review-action-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.review-tag {
+  border-radius: 999px;
+  font-size: 11px;
+  padding: 4px 8px;
+  border: 1px solid rgba(148, 163, 184, 0.26);
+  color: #475569;
+  background: rgba(148, 163, 184, 0.12);
+}
+
+.review-tag.is-correct {
+  color: #065f46;
+  background: rgba(16, 185, 129, 0.14);
+  border-color: rgba(16, 185, 129, 0.3);
+}
+
+.review-tag.is-wrong {
+  color: #991b1b;
+  background: rgba(248, 113, 113, 0.14);
+  border-color: rgba(248, 113, 113, 0.3);
+}
+
 .question-empty {
   margin: 0;
   font-size: 12px;
@@ -563,6 +693,15 @@ function goBack() {
 .is-dark .question-item {
   background: rgba(15, 23, 42, 0.55);
   border-color: rgba(148, 163, 184, 0.2);
+}
+
+.is-dark .question-block {
+  border-color: rgba(148, 163, 184, 0.3);
+  background: rgba(30, 41, 59, 0.65);
+}
+
+.is-dark .question-block-title {
+  color: #94a3b8;
 }
 
 @keyframes ring-draw {
