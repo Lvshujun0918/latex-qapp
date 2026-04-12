@@ -67,7 +67,11 @@
           @contextmenu.prevent
           @click="onRecordClick(record.id)"
         >
-          <div>
+          <span class="subject-watermark" :class="watermarkClass(record.subject)">
+            <component :is="subjectIcon(record.subject)" class="subject-watermark-icon" />
+          </span>
+
+          <div class="record-main">
             <h3>{{ record.title || '未命名题目' }}</h3>
             <p>{{ formatSubject(record.subject) }} · {{ formatQuestionType(record.questionType) }}</p>
           </div>
@@ -115,7 +119,7 @@
 import { storeToRefs } from 'pinia';
 import { computed, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { Camera, ChevronRight, Sparkles, Trash2 } from 'lucide-vue-next';
+import { Atom, Calculator, Camera, ChevronRight, Dna, FlaskConical, Sparkles, Trash2 } from 'lucide-vue-next';
 import ImageSourceDialog from '@/components/ImageSourceDialog.vue';
 import { useTheme } from '@/composables/useTheme';
 import { upsertPdfExportHistory } from '@/services/pdf-history';
@@ -321,6 +325,24 @@ function formatQuestionType(questionType?: string) {
   return questionType || '未知';
 }
 
+function subjectIcon(subject?: string) {
+  const value = String(subject || '').trim().toLowerCase();
+  if (value === 'math' || value === '数学') return Calculator;
+  if (value === 'physics' || value === '物理') return Atom;
+  if (value === 'chemistry' || value === '化学') return FlaskConical;
+  if (value === 'biology' || value === '生物') return Dna;
+  return Sparkles;
+}
+
+function watermarkClass(subject?: string) {
+  const value = String(subject || '').trim().toLowerCase();
+  if (value === 'math' || value === '数学') return 'is-math';
+  if (value === 'physics' || value === '物理') return 'is-physics';
+  if (value === 'chemistry' || value === '化学') return 'is-chemistry';
+  if (value === 'biology' || value === '生物') return 'is-biology';
+  return 'is-default';
+}
+
 function toggleSelected(id: number) {
   if (isSelected(id)) {
     selectedIds.value = selectedIds.value.filter((item) => item !== id);
@@ -503,6 +525,52 @@ async function createFromCamera(source: 'camera' | 'album' | 'file') {
   z-index: 1;
 }
 
+.record-main {
+  min-width: 0;
+  position: relative;
+  z-index: 2;
+  padding-left: 12px;
+}
+
+.subject-watermark {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  opacity: 0.15;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.subject-watermark-icon {
+  width: 72px;
+  height: 72px;
+}
+
+.subject-watermark.is-math {
+  color: #0f766e;
+}
+
+.subject-watermark.is-physics {
+  color: #1d4ed8;
+}
+
+.subject-watermark.is-chemistry {
+  color: #7c2d12;
+}
+
+.subject-watermark.is-biology {
+  color: #166534;
+}
+
+.subject-watermark.is-default {
+  color: #475569;
+}
+
 .record-item.dragging {
   transition: none;
 }
@@ -582,6 +650,30 @@ async function createFromCamera(source: 'camera' | 'album' | 'file') {
 }
 
 .is-dark .record-item p {
+  color: #cbd5e1;
+}
+
+.is-dark .subject-watermark {
+  opacity: 0.20;
+}
+
+.is-dark .subject-watermark.is-math {
+  color: #5eead4;
+}
+
+.is-dark .subject-watermark.is-physics {
+  color: #93c5fd;
+}
+
+.is-dark .subject-watermark.is-chemistry {
+  color: #fdba74;
+}
+
+.is-dark .subject-watermark.is-biology {
+  color: #86efac;
+}
+
+.is-dark .subject-watermark.is-default {
   color: #cbd5e1;
 }
 
