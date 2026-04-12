@@ -88,8 +88,10 @@ import PdfWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import { useRoute } from 'vue-router';
 import { useRouter } from 'vue-router';
 import { useTheme } from '@/composables/useTheme';
+import { upsertPdfExportHistory } from '@/services/pdf-history';
 import { getPdfJob } from '@/services/pdf';
 import { openPdfFromLocalUri, saveRemotePdfToDevice } from '@/services/pdf-native';
+import { useAuthStore } from '@/stores/auth';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
@@ -97,6 +99,7 @@ GlobalWorkerOptions.workerSrc = PdfWorker;
 
 const route = useRoute();
 const router = useRouter();
+const authStore = useAuthStore();
 const { resolvedTheme } = useTheme();
 const loading = ref(false);
 const saving = ref(false);
@@ -178,6 +181,18 @@ async function fetchJob() {
       : [];
 
     if (jobStatus.value === 'done' || pdfPath.value) {
+      upsertPdfExportHistory(
+        {
+          userId: authStore.userId,
+          username: authStore.username,
+        },
+        {
+          jobId,
+          pdfFileUrl: pdfPath.value,
+          selectedCount: selectedCount.value,
+          source: 'unknown',
+        },
+      );
       clearPoll();
     }
   } catch (error: any) {
