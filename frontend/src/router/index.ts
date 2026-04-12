@@ -27,6 +27,10 @@ const routes: Array<RouteRecordRaw> = [
         component: () => import('@/views/ReviewHomePage.vue'),
       },
       {
+        path: 'pdfs',
+        component: () => import('@/views/PdfCenterPage.vue'),
+      },
+      {
         path: 'stats',
         component: () => import('@/views/StatsPage.vue'),
       },
