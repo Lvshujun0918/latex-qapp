@@ -15,19 +15,25 @@ type RecordService struct {
 }
 
 type CreateRecordInput struct {
-	Subject          string     `json:"subject"`
-	QuestionType     string     `json:"question_type"`
-	Title            string     `json:"title"`
-	LatexSource      JSONText   `json:"latex_source"`
-	LatexAnswer      string     `json:"latex_answer"`
-	QuestionTags     []string   `json:"question_tags"`
-	MistakeReason    string     `json:"mistake_reason"`
-	MasteryLevel     *int       `json:"mastery_level"`
-	ReviewCount      *int       `json:"review_count"`
-	ReviewEaseFactor *float64   `json:"review_ease_factor"`
-	LastReviewResult *string    `json:"last_review_result"`
-	LastReviewedAt   *time.Time `json:"last_reviewed_at"`
-	NextReviewAt     *time.Time `json:"next_review_at"`
+	Subject              string     `json:"subject"`
+	QuestionType         string     `json:"question_type"`
+	Title                string     `json:"title"`
+	LatexSource          JSONText   `json:"latex_source"`
+	AnswerMode           string     `json:"answer_mode"`
+	AnswerText           string     `json:"answer_text"`
+	AnswerImageDataURL   string     `json:"answer_image_data_url"`
+	AnalysisMode         string     `json:"analysis_mode"`
+	AnalysisText         string     `json:"analysis_text"`
+	AnalysisImageDataURL string     `json:"analysis_image_data_url"`
+	LatexAnswer          string     `json:"latex_answer"`
+	QuestionTags         []string   `json:"question_tags"`
+	MistakeReason        string     `json:"mistake_reason"`
+	MasteryLevel         *int       `json:"mastery_level"`
+	ReviewCount          *int       `json:"review_count"`
+	ReviewEaseFactor     *float64   `json:"review_ease_factor"`
+	LastReviewResult     *string    `json:"last_review_result"`
+	LastReviewedAt       *time.Time `json:"last_reviewed_at"`
+	NextReviewAt         *time.Time `json:"next_review_at"`
 }
 
 // JSONText accepts either a JSON string literal or a JSON object/array,
@@ -105,20 +111,26 @@ func (s *RecordService) Create(userID uint, input CreateRecordInput) (*model.Err
 	}
 
 	record := model.ErrorRecord{
-		UserID:            userID,
-		Subject:           input.Subject,
-		QuestionType:      input.QuestionType,
-		Title:             input.Title,
-		LatexSource:       string(input.LatexSource),
-		LatexAnswer:       input.LatexAnswer,
-		QuestionTagsJSON:  string(tagsBytes),
-		LatexVersion:      1,
-		LatexRenderStatus: "pending",
-		MistakeReason:     input.MistakeReason,
-		MasteryLevel:      0,
-		ReviewCount:       0,
-		ReviewEaseFactor:  2.5,
-		LastReviewResult:  "none",
+		UserID:               userID,
+		Subject:              input.Subject,
+		QuestionType:         input.QuestionType,
+		Title:                input.Title,
+		LatexSource:          string(input.LatexSource),
+		AnswerMode:           normalizeSourceMode(input.AnswerMode),
+		AnswerText:           input.AnswerText,
+		AnswerImageDataURL:   input.AnswerImageDataURL,
+		AnalysisMode:         normalizeSourceMode(input.AnalysisMode),
+		AnalysisText:         input.AnalysisText,
+		AnalysisImageDataURL: input.AnalysisImageDataURL,
+		LatexAnswer:          input.LatexAnswer,
+		QuestionTagsJSON:     string(tagsBytes),
+		LatexVersion:         1,
+		LatexRenderStatus:    "pending",
+		MistakeReason:        input.MistakeReason,
+		MasteryLevel:         0,
+		ReviewCount:          0,
+		ReviewEaseFactor:     2.5,
+		LastReviewResult:     "none",
 	}
 
 	if input.MasteryLevel != nil {
@@ -158,6 +170,12 @@ func (s *RecordService) Update(userID uint, id uint, input CreateRecordInput) (*
 	record.QuestionType = input.QuestionType
 	record.Title = input.Title
 	record.LatexSource = string(input.LatexSource)
+	record.AnswerMode = normalizeSourceMode(input.AnswerMode)
+	record.AnswerText = input.AnswerText
+	record.AnswerImageDataURL = input.AnswerImageDataURL
+	record.AnalysisMode = normalizeSourceMode(input.AnalysisMode)
+	record.AnalysisText = input.AnalysisText
+	record.AnalysisImageDataURL = input.AnalysisImageDataURL
 	record.LatexAnswer = input.LatexAnswer
 	record.QuestionTagsJSON = string(tagsBytes)
 	record.MistakeReason = input.MistakeReason
@@ -210,6 +228,15 @@ func normalizeReviewResult(value string) string {
 		return value
 	default:
 		return "none"
+	}
+}
+
+func normalizeSourceMode(value string) string {
+	switch value {
+	case "image":
+		return "image"
+	default:
+		return "ai"
 	}
 }
 
