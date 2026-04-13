@@ -464,7 +464,7 @@ function childResultText(result?: string) {
 .download-link {
   color: #f8fafc;
   text-decoration: none;
-  background: linear-gradient(110deg, #2563eb 0%, #1d4ed8 55%, #1e40af 100%);
+  background: #2563eb;
   border-radius: 12px;
   padding: 10px 16px;
   font-size: 13px;
@@ -477,7 +477,7 @@ function childResultText(result?: string) {
 
 .download-link:hover {
   transform: translateY(-1px);
-  box-shadow: 0 10px 22px rgba(29, 78, 216, 0.34);
+  box-shadow: 0 10px 22px rgba(37, 99, 235, 0.34);
 }
 
 .download-link:active {

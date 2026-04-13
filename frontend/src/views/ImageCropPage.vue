@@ -254,7 +254,7 @@ function goBack() {
     min-height: min(76dvh, 620px);
     border-radius: 18px;
     overflow: hidden;
-    background: linear-gradient(180deg, rgba(15, 23, 42, 0.12), rgba(15, 23, 42, 0.06));
+    background: rgba(15, 23, 42, 0.08);
     touch-action: none;
 }
 
@@ -268,7 +268,7 @@ function goBack() {
     justify-content: space-between;
     gap: 8px;
     border-radius: 12px;
-    background: rgba(15, 23, 42, 0.58);
+    background: rgba(15, 23, 42, 0.72);
     color: #f8fafc;
     padding: 8px 10px;
     font-size: 12px;

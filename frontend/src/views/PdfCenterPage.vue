@@ -374,8 +374,8 @@ function resultClass(result?: string) {
 .review-meta { margin: 0; font-size: 12px; color: #64748b; }
 .progress-row { display: flex; align-items: center; gap: 8px; }
 .progress-track { position: relative; flex: 1; height: 7px; border-radius: 999px; overflow: hidden; background: rgba(148, 163, 184, 0.22); }
-.progress-fill { height: 100%; border-radius: 999px; background: linear-gradient(90deg, #22c55e 0%, #0ea5e9 100%); }
-.progress-fill.due { background: linear-gradient(90deg, #f59e0b 0%, #ef4444 100%); }
+.progress-fill { height: 100%; border-radius: 999px; background: #2563eb; }
+.progress-fill.due { background: #f59e0b; }
 .progress-text { width: 42px; text-align: right; font-size: 11px; color: #64748b; }
 .urgency-text { margin: 0; font-size: 11px; color: #b45309; }
 .result-badge { font-size: 10px; border-radius: 999px; padding: 2px 8px; border: 1px solid transparent; white-space: nowrap; }

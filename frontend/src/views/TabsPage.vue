@@ -50,19 +50,11 @@ function isActive(path: string) {
 <style scoped>
 .tabs-layout {
   min-height: 100dvh;
-  background:
-    radial-gradient(circle at 16% -8%, rgba(124, 186, 255, 0.28), transparent 40%),
-    radial-gradient(circle at 95% 4%, rgba(89, 219, 171, 0.2), transparent 34%),
-    radial-gradient(circle at 50% 100%, rgba(255, 255, 255, 0.7), transparent 48%),
-    hsl(var(--background));
+  background: var(--background);
 }
 
 .tabs-layout.is-dark {
-  background:
-    radial-gradient(circle at 16% -8%, rgba(56, 189, 248, 0.18), transparent 40%),
-    radial-gradient(circle at 95% 4%, rgba(16, 185, 129, 0.16), transparent 34%),
-    radial-gradient(circle at 50% 100%, rgba(15, 23, 42, 0.5), transparent 48%),
-    hsl(var(--background));
+  background: var(--background);
 }
 
 .tabs-content {
@@ -103,7 +95,7 @@ function isActive(path: string) {
   height: 56px;
   border-radius: 14px;
   text-decoration: none;
-  color: hsl(var(--muted-foreground));
+  color: var(--muted-foreground);
   display: inline-flex;
   flex-direction: column;
   justify-content: center;
@@ -115,8 +107,8 @@ function isActive(path: string) {
 }
 
 .tab-link.active {
-  color: hsl(var(--primary));
-  background: linear-gradient(160deg, rgba(255, 255, 255, 0.7), rgba(219, 236, 255, 0.55));
+  color: var(--primary);
+  background: rgba(37, 99, 235, 0.12);
 }
 
 .tabs-layout.is-dark .tab-link {
@@ -125,7 +117,7 @@ function isActive(path: string) {
 
 .tabs-layout.is-dark .tab-link.active {
   color: #dbeafe;
-  background: linear-gradient(160deg, rgba(30, 41, 59, 0.8), rgba(37, 99, 235, 0.22));
+  background: rgba(37, 99, 235, 0.24);
 }
 
 .tab-icon {

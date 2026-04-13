@@ -205,23 +205,8 @@ const topWeakSubjectText = computed(() => {
 });
 
 const subjectDonutStyle = computed<CSSProperties>(() => {
-  if (!subjectRows.value.length) {
-    return { background: 'conic-gradient(var(--muted) 0 100%)' };
-  }
-
-  let cursor = 0;
-  const segments = subjectRows.value.map((row) => {
-    const start = cursor;
-    cursor += row.ratio;
-    return `${row.color} ${start}% ${Math.min(cursor, 100)}%`;
-  });
-
-  if (cursor < 100) {
-    segments.push(`var(--muted) ${cursor}% 100%`);
-  }
-
   return {
-    background: `conic-gradient(${segments.join(', ')})`,
+    background: subjectRows.value[0]?.color || 'var(--muted)',
   };
 });
 
@@ -474,6 +459,7 @@ function formatSubject(subject?: string) {
   border-radius: 999px;
   display: grid;
   place-items: center;
+  background: var(--muted);
 }
 
 .subject-donut-inner {

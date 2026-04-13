@@ -331,7 +331,7 @@ button.metric-pill:hover {
 
 .tab-button.active {
     color: #fff;
-    background: linear-gradient(90deg, #0ea5e9 0%, #22c55e 100%);
+    background: #2563eb;
 }
 
 .list-content {
@@ -432,11 +432,11 @@ button.metric-pill:hover {
 .progress-fill {
     height: 100%;
     border-radius: 999px;
-    background: linear-gradient(90deg, #22c55e 0%, #0ea5e9 100%);
+    background: #2563eb;
 }
 
 .progress-fill.due {
-    background: linear-gradient(90deg, #f59e0b 0%, #ef4444 100%);
+    background: #f59e0b;
 }
 
 .progress-text {

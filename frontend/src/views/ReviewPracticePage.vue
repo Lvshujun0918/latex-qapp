@@ -215,9 +215,7 @@ function formatQuestionType(questionType?: string) {
   border-radius: 14px;
   display: grid;
   gap: 12px;
-  background:
-    radial-gradient(120% 100% at 100% 0%, rgba(59, 130, 246, 0.2) 0%, rgba(59, 130, 246, 0) 50%),
-    linear-gradient(135deg, rgba(14, 165, 233, 0.12) 0%, rgba(34, 197, 94, 0.08) 100%);
+  background: rgba(37, 99, 235, 0.08);
 }
 
 .session-label {
@@ -255,7 +253,7 @@ function formatQuestionType(questionType?: string) {
 .session-progress-fill {
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, #22c55e 0%, #0ea5e9 70%, #6366f1 100%);
+  background: #2563eb;
 }
 
 .session-progress-text {
@@ -307,9 +305,7 @@ function formatQuestionType(questionType?: string) {
 }
 
 .is-dark .session-hero-content {
-  background:
-    radial-gradient(120% 100% at 100% 0%, rgba(56, 189, 248, 0.24) 0%, rgba(56, 189, 248, 0) 50%),
-    linear-gradient(135deg, rgba(14, 116, 144, 0.35) 0%, rgba(30, 64, 175, 0.24) 100%);
+  background: rgba(37, 99, 235, 0.16);
 }
 
 .is-dark .session-label,

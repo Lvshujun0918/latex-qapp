@@ -148,7 +148,7 @@ function logout() {
   font-size: 20px;
   font-weight: 700;
   color: #ffffff;
-  background: linear-gradient(145deg, #0ea5e9 0%, #2563eb 60%, #1d4ed8 100%);
+  background: #2563eb;
   box-shadow: 0 10px 24px rgba(37, 99, 235, 0.32);
 }
 

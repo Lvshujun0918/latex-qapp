@@ -289,18 +289,14 @@ function assembleLatexFromQuestionJson(questionJson: any): string {
 .ocr-page {
   min-height: 100vh;
   padding: 20px 16px 28px;
-  background: radial-gradient(circle at 10% 10%, rgba(14, 116, 144, 0.12), transparent 45%),
-    radial-gradient(circle at 90% 0%, rgba(14, 165, 233, 0.16), transparent 40%),
-    linear-gradient(160deg, #f5f9ff 0%, #eef3ff 100%);
+  background: var(--background);
   display: flex;
   flex-direction: column;
   gap: 16px;
 }
 
 .ocr-page.is-dark {
-  background: radial-gradient(circle at 15% 10%, rgba(14, 165, 233, 0.2), transparent 40%),
-    radial-gradient(circle at 90% 5%, rgba(59, 130, 246, 0.2), transparent 40%),
-    linear-gradient(155deg, #0f172a 0%, #111827 100%);
+  background: var(--background);
 }
 
 .ocr-header {

@@ -123,8 +123,8 @@ function goBack() {
     font-size: 20px;
     font-weight: 800;
     color: #ffffff;
-    background: linear-gradient(145deg, #22c55e 0%, #16a34a 50%, #0f766e 100%);
-    box-shadow: 0 10px 24px rgba(22, 163, 74, 0.28);
+    background: #2563eb;
+    box-shadow: 0 10px 24px rgba(37, 99, 235, 0.24);
 }
 
 .hero-text h2 {

@@ -7,25 +7,25 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.129 0.042 264.695);
+  --background: oklch(0.985 0.003 248);
+  --foreground: oklch(0.23 0.03 255);
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.129 0.042 264.695);
+  --card-foreground: oklch(0.23 0.03 255);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.129 0.042 264.695);
-  --primary: oklch(0.208 0.042 265.755);
-  --primary-foreground: oklch(0.984 0.003 247.858);
-  --secondary: oklch(0.968 0.007 247.896);
-  --secondary-foreground: oklch(0.208 0.042 265.755);
-  --muted: oklch(0.968 0.007 247.896);
-  --muted-foreground: oklch(0.554 0.046 257.417);
-  --accent: oklch(0.968 0.007 247.896);
-  --accent-foreground: oklch(0.208 0.042 265.755);
-  --destructive: oklch(0.577 0.245 27.325);
-  --destructive-foreground: oklch(0.577 0.245 27.325);
-  --border: oklch(0.929 0.013 255.508);
-  --input: oklch(0.929 0.013 255.508);
-  --ring: oklch(0.704 0.04 256.788);
+  --popover-foreground: oklch(0.23 0.03 255);
+  --primary: oklch(0.46 0.16 255);
+  --primary-foreground: oklch(0.985 0.003 248);
+  --secondary: oklch(0.955 0.01 250);
+  --secondary-foreground: oklch(0.32 0.03 255);
+  --muted: oklch(0.955 0.01 250);
+  --muted-foreground: oklch(0.5 0.03 255);
+  --accent: oklch(0.94 0.015 255);
+  --accent-foreground: oklch(0.3 0.03 255);
+  --destructive: oklch(0.56 0.23 25);
+  --destructive-foreground: oklch(0.985 0.003 248);
+  --border: oklch(0.9 0.01 250);
+  --input: oklch(0.9 0.01 250);
+  --ring: oklch(0.46 0.16 255);
   --radius: 0.625rem;
   --chart-1: oklch(0.646 0.222 41.116);
   --chart-2: oklch(0.6 0.118 184.704);
@@ -43,25 +43,25 @@
 }
 
 .dark {
-  --background: oklch(0.129 0.042 264.695);
-  --foreground: oklch(0.984 0.003 247.858);
-  --card: oklch(0.17 0.028 265.5);
-  --card-foreground: oklch(0.984 0.003 247.858);
-  --popover: oklch(0.17 0.028 265.5);
-  --popover-foreground: oklch(0.984 0.003 247.858);
-  --primary: oklch(0.929 0.013 255.508);
-  --primary-foreground: oklch(0.208 0.042 265.755);
-  --secondary: oklch(0.279 0.041 260.031);
-  --secondary-foreground: oklch(0.984 0.003 247.858);
-  --muted: oklch(0.279 0.041 260.031);
-  --muted-foreground: oklch(0.704 0.04 256.788);
-  --accent: oklch(0.279 0.041 260.031);
-  --accent-foreground: oklch(0.984 0.003 247.858);
-  --destructive: oklch(0.704 0.191 22.216);
-  --destructive-foreground: oklch(0.637 0.237 25.331);
+  --background: oklch(0.16 0.02 255);
+  --foreground: oklch(0.98 0.003 248);
+  --card: oklch(0.19 0.02 255);
+  --card-foreground: oklch(0.98 0.003 248);
+  --popover: oklch(0.19 0.02 255);
+  --popover-foreground: oklch(0.98 0.003 248);
+  --primary: oklch(0.72 0.12 255);
+  --primary-foreground: oklch(0.16 0.02 255);
+  --secondary: oklch(0.25 0.02 255);
+  --secondary-foreground: oklch(0.98 0.003 248);
+  --muted: oklch(0.25 0.02 255);
+  --muted-foreground: oklch(0.74 0.02 255);
+  --accent: oklch(0.25 0.02 255);
+  --accent-foreground: oklch(0.98 0.003 248);
+  --destructive: oklch(0.65 0.18 25);
+  --destructive-foreground: oklch(0.98 0.003 248);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.551 0.027 264.364);
+  --ring: oklch(0.72 0.12 255);
   --chart-1: oklch(0.488 0.243 264.376);
   --chart-2: oklch(0.696 0.17 162.48);
   --chart-3: oklch(0.769 0.188 70.08);
@@ -125,20 +125,12 @@
     @apply bg-background text-foreground antialiased;
     font-family: "Outfit", "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
     min-height: 100dvh;
-    background:
-      radial-gradient(circle at 0% 0%, rgba(16, 185, 129, 0.14), transparent 34%),
-      radial-gradient(circle at 100% 0%, rgba(59, 130, 246, 0.14), transparent 40%),
-      radial-gradient(circle at 50% 100%, rgba(244, 114, 182, 0.1), transparent 45%),
-      linear-gradient(180deg, #f8fafc 0%, #eef2ff 45%, #ecfeff 100%);
+    background: var(--background);
     transition: background 0.35s ease, color 0.25s ease;
   }
 
   .dark body {
-    background:
-      radial-gradient(circle at 0% 0%, rgba(20, 184, 166, 0.14), transparent 34%),
-      radial-gradient(circle at 100% 0%, rgba(99, 102, 241, 0.16), transparent 40%),
-      radial-gradient(circle at 50% 100%, rgba(236, 72, 153, 0.14), transparent 45%),
-      linear-gradient(180deg, #020617 0%, #0f172a 48%, #111827 100%);
+    background: var(--background);
   }
 }
 

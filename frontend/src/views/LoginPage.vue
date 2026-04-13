@@ -93,19 +93,11 @@ function toggleMode() {
   display: grid;
   place-items: center;
   padding: calc(24px + env(safe-area-inset-top, 0px)) 24px calc(24px + env(safe-area-inset-bottom, 0px));
-  background:
-    radial-gradient(circle at 10% 10%, rgba(16, 185, 129, 0.24), transparent 38%),
-    radial-gradient(circle at 88% 12%, rgba(59, 130, 246, 0.22), transparent 42%),
-    radial-gradient(circle at 50% 100%, rgba(236, 72, 153, 0.12), transparent 48%),
-    linear-gradient(160deg, #f8fafc 0%, #edf5ff 52%, #f0fdfa 100%);
+  background: var(--background);
 }
 
 .auth-page.is-dark {
-  background:
-    radial-gradient(circle at 10% 10%, rgba(34, 197, 94, 0.18), transparent 34%),
-    radial-gradient(circle at 88% 12%, rgba(59, 130, 246, 0.18), transparent 40%),
-    radial-gradient(circle at 50% 100%, rgba(236, 72, 153, 0.14), transparent 45%),
-    linear-gradient(160deg, #020617 0%, #0f172a 52%, #111827 100%);
+  background: var(--background);
 }
 
 .auth-card {
@@ -135,8 +127,8 @@ function toggleMode() {
   align-items: center;
   border-radius: 999px;
   border: 1px solid rgba(16, 185, 129, 0.35);
-  background: rgba(16, 185, 129, 0.12);
-  color: #047857;
+  background: rgba(14, 165, 233, 0.12);
+  color: #2563eb;
   padding: 4px 10px;
   font-size: 11px;
   font-weight: 700;
@@ -145,9 +137,9 @@ function toggleMode() {
 }
 
 .auth-page.is-dark .auth-kicker {
-  border-color: rgba(52, 211, 153, 0.36);
-  background: rgba(16, 185, 129, 0.14);
-  color: #a7f3d0;
+  border-color: rgba(96, 165, 250, 0.36);
+  background: rgba(37, 99, 235, 0.18);
+  color: #dbeafe;
 }
 
 .auth-head h1 {
@@ -241,12 +233,12 @@ function toggleMode() {
 }
 
 .btn-primary {
-  background: linear-gradient(140deg, #0ea5e9 0%, #2563eb 55%, #0f766e 100%);
+  background: #2563eb;
   color: #fff;
 }
 
 .auth-page.is-dark .btn-primary {
-  background: linear-gradient(140deg, #38bdf8 0%, #2563eb 55%, #0f766e 100%);
+  background: #3b82f6;
 }
 
 .btn-ghost {

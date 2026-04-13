@@ -344,7 +344,7 @@ async function createFromCamera(source: 'camera' | 'album' | 'file') {
   width: 88px;
   border: 0;
   color: #fff;
-  background: linear-gradient(180deg, #ef4444, #dc2626);
+  background: #dc2626;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -471,7 +471,7 @@ async function createFromCamera(source: 'camera' | 'album' | 'file') {
   display: grid;
   place-items: center;
   border-radius: 20px;
-  background: linear-gradient(145deg, rgba(31, 122, 255, 0.2), rgba(31, 122, 255, 0.06));
+  background: rgba(37, 99, 235, 0.12);
 }
 
 .empty-icon {
