@@ -3,12 +3,11 @@
     <DialogContent class="sm:max-w-md">
       <DialogHeader>
         <DialogTitle>选择图片来源</DialogTitle>
-        <DialogDescription>选择拍照、相册或文件导入。</DialogDescription>
+        <DialogDescription>选择拍照或相册导入。</DialogDescription>
       </DialogHeader>
       <div class="source-grid">
         <Button variant="outline" @click="select('camera')">拍照</Button>
         <Button variant="outline" @click="select('album')">相册</Button>
-        <Button variant="outline" @click="select('file')">文件</Button>
       </div>
     </DialogContent>
   </Dialog>
@@ -21,10 +20,10 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 const props = defineProps<{ open: boolean }>();
 const emit = defineEmits<{
   (e: 'update:open', value: boolean): void;
-  (e: 'select', value: 'camera' | 'album' | 'file'): void;
+  (e: 'select', value: 'camera' | 'album'): void;
 }>();
 
-function select(source: 'camera' | 'album' | 'file') {
+function select(source: 'camera' | 'album') {
   emit('select', source);
   emit('update:open', false);
 }
