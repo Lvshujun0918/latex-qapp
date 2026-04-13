@@ -3,7 +3,6 @@
     <header class="ocr-header">
       <div class="ocr-badge">
         <ScanSearch class="h-4 w-4" />
-        <span>Vision Pipeline</span>
       </div>
       <h1>识别进行中</h1>
       <p>每个阶段完成后会自动勾选，完成后可直接进入编辑页。</p>

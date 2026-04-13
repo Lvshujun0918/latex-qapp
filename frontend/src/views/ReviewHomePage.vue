@@ -1,7 +1,6 @@
 <template>
     <section class="app-page app-inner-page page-wrap" :class="{ 'is-dark': resolvedTheme === 'dark' }">
         <header class="app-page-header page-header compact-header">
-            <span class="app-kicker">Daily Focus</span>
             <h1>复习</h1>
             <p>
                 帮助家长按 {{ EBBINGHAUS_INTERVALS.join(' / ') }} 天节奏安排孩子复习，支持到期与提前复习。

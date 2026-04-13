@@ -2,7 +2,6 @@
   <section class="app-page app-inner-page page-wrap" :class="{ 'is-dark': resolvedTheme === 'dark' }" v-if="record">
     <header class="app-page-header page-header">
       <Button variant="outline" size="icon-sm" class="app-header-back mr-4" @click="goBack" aria-label="返回上一级"><</Button>
-      <span class="app-kicker">Parent Review Loop</span>
       <h1>家长复习批改</h1>
       <p>孩子线下作答后，家长在这里查看答案并登记对错，系统会自动更新复习节奏。</p>
     </header>

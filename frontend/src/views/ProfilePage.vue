@@ -1,7 +1,6 @@
 <template>
   <section class="app-page page-wrap" :class="{ 'is-dark': resolvedTheme === 'dark' }">
     <header class="app-page-header page-header">
-      <span class="app-kicker">Profile</span>
       <h1>我的</h1>
       <p>家长账号中心：管理陪学资料、导出记录与界面设置。</p>
     </header>

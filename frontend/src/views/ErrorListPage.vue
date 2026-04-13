@@ -1,7 +1,6 @@
 <template>
   <section class="app-page page-wrap" :class="{ 'is-dark': resolvedTheme === 'dark' }">
     <header class="app-page-header page-header">
-      <span class="app-kicker">Parent Console</span>
       <h1>错题</h1>
       <p>帮助家长记录、检索并持续迭代孩子的 LaTeX 错题集。</p>
     </header>

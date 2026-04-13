@@ -1,7 +1,6 @@
 <template>
   <section class="app-page app-inner-page page-wrap" :class="{ 'is-dark': resolvedTheme === 'dark' }">
     <header class="app-page-header page-header">
-      <span class="app-kicker">Progress Pulse</span>
       <h1>统计</h1>
       <p>看清增长趋势、学科结构和下一步复习重点。</p>
     </header>

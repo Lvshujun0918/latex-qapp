@@ -2,7 +2,6 @@
   <section class="auth-page" :class="{ 'is-dark': resolvedTheme === 'dark' }">
     <div class="auth-card">
       <div class="auth-head">
-        <span class="auth-kicker">Parent Study Coach</span>
         <h1>{{ isRegisterMode ? '注册账号' : '欢迎回来' }}</h1>
         <p>{{ isRegisterMode ? '创建家长账号后即可同步并导出孩子错题。' : '登录后继续管理孩子的 AI 错题本。' }}</p>
       </div>

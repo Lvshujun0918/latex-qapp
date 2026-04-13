@@ -2,7 +2,6 @@
   <section class="app-page app-inner-page page-wrap">
     <header class="app-page-header page-header">
       <Button variant="outline" size="icon-sm" class="app-header-back mr-4" @click="goBack" aria-label="返回上一级"><</Button>
-      <span class="app-kicker">Draft Studio</span>
       <h1>录入错题</h1>
       <p>核对识别结果并补全答案、步骤和标签。</p>
     </header>

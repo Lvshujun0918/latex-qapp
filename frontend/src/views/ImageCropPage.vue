@@ -4,7 +4,6 @@
             <Button variant="outline" size="icon-sm" class="app-header-back mr-4" @click="goBack" aria-label="返回上一级">
                 <
             </Button>
-            <span class="app-kicker">Crop Stage</span>
             <h1>裁剪题目</h1>
             <p>拖动裁剪框，把题目内容尽量完整框住后再进入识别。</p>
         </header>

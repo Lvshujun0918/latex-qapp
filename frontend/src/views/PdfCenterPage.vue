@@ -1,7 +1,6 @@
 <template>
   <section class="app-page page-wrap" :class="{ 'is-dark': resolvedTheme === 'dark' }">
     <header class="app-page-header page-header">
-      <span class="app-kicker">Parent PDF Desk</span>
       <h1>PDF 导出</h1>
       <p>统一管理导出任务、下载打印与批改登记。</p>
     </header>

@@ -2,7 +2,6 @@
     <section class="app-page app-inner-page pt-8 about-page" :class="{ 'is-dark': resolvedTheme === 'dark' }">
         <header class="app-page-header page-header">
             <Button variant="outline" size="icon-sm" class="app-header-back mr-4" @click="goBack" aria-label="返回上一级">< </Button>
-            <span class="app-kicker">About</span>
             <h1>关于应用</h1>
             <p>了解产品定位、版本信息和数据处理方式。</p>
         </header>
