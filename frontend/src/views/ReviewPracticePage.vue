@@ -41,7 +41,13 @@
 
         <div v-if="stage !== 'waiting'" class="answer-block">
           <h4>标准答案</h4>
-          <LatexView :source="record.latexAnswer || '暂无答案'" class="latex-block" />
+          <img
+            v-if="record.answerMode === 'image' && record.answerImageDataUrl"
+            :src="record.answerImageDataUrl"
+            alt="标准答案图片"
+            class="media-preview"
+          />
+          <LatexView v-else :source="record.answerText || '暂无答案'" class="latex-block" />
         </div>
 
         <div v-if="stage === 'revealed'" class="judge-row">
@@ -51,7 +57,13 @@
 
         <div v-if="stage === 'judged-wrong'" class="analysis-block">
           <h4>解析</h4>
-          <MarkdownView :source="record.mistakeReason || '暂无解析'" class="markdown-block" />
+          <img
+            v-if="record.analysisMode === 'image' && record.analysisImageDataUrl"
+            :src="record.analysisImageDataUrl"
+            alt="解析图片"
+            class="media-preview"
+          />
+          <MarkdownView v-else :source="record.analysisText || '暂无解析'" class="markdown-block" />
         </div>
 
         <Alert v-if="errorMessage" variant="destructive">
@@ -289,6 +301,15 @@ function formatQuestionType(questionType?: string) {
   border-radius: 12px;
   padding: 12px;
   background: rgba(248, 250, 252, 0.75);
+}
+
+.media-preview {
+  width: 100%;
+  max-height: 320px;
+  object-fit: contain;
+  border-radius: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  background: rgba(248, 250, 252, 0.78);
 }
 
 .answer-block h4,
