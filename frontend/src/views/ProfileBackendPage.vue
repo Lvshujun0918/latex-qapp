@@ -11,42 +11,22 @@
       <AlertDescription>{{ errorMessage }}</AlertDescription>
     </Alert>
 
-    <Card class="app-page-shell">
-      <CardHeader class="status-head">
-        <CardTitle>实时状态</CardTitle>
-        <Button variant="outline" size="sm" :disabled="loading" @click="loadRuntime">{{ loading ? '刷新中...' : '刷新' }}</Button>
-      </CardHeader>
-      <CardContent class="status-grid">
-        <div class="status-item">
-          <span>服务状态</span>
-          <strong :class="runtime?.status === 'ok' ? 'ok' : 'bad'">{{ runtime?.status || 'unknown' }}</strong>
-        </div>
-        <div class="status-item">
-          <span>后端版本</span>
-          <strong>{{ runtime?.version || '-' }}</strong>
-        </div>
-        <div class="status-item">
-          <span>请求时延</span>
-          <strong>{{ latencyText }}</strong>
-        </div>
-        <div class="status-item">
-          <span>Go 版本</span>
-          <strong>{{ runtime?.go_version || '-' }}</strong>
-        </div>
-      </CardContent>
-    </Card>
-
-    <Card class="app-page-shell">
-      <CardHeader>
-        <CardTitle>运行信息</CardTitle>
-      </CardHeader>
-      <CardContent class="runtime-list">
-        <p><span>启动时间：</span>{{ formatDate(runtime?.started_at) }}</p>
-        <p><span>服务时间：</span>{{ formatDate(runtime?.server_time) }}</p>
-        <p><span>运行时长：</span>{{ uptimeText }}</p>
-        <p><span>最近刷新：</span>{{ formatDate(lastRefreshedAt) }}</p>
-      </CardContent>
-    </Card>
+    <div class="status-item">
+      <span>服务状态</span>
+      <strong :class="runtime?.status === 'ok' ? 'ok' : 'bad'">{{ runtime?.status || 'unknown' }}</strong>
+    </div>
+    <div class="status-item">
+      <span>后端版本</span>
+      <strong>{{ runtime?.version || '-' }}</strong>
+    </div>
+    <div class="status-item">
+      <span>请求时延</span>
+      <strong>{{ latencyText }}</strong>
+    </div>
+    <div class="status-item">
+      <span>Go 版本</span>
+      <strong>{{ runtime?.go_version || '-' }}</strong>
+    </div>
   </section>
 </template>
 
