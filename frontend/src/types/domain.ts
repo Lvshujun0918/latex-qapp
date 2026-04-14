@@ -11,6 +11,12 @@ export interface ErrorRecord {
   questionType?: string;
   title?: string;
   latexSource: string;
+  answerMode?: 'ai' | 'image';
+  answerText?: string;
+  answerImageDataUrl?: string;
+  analysisMode?: 'ai' | 'image';
+  analysisText?: string;
+  analysisImageDataUrl?: string;
   latexAnswer?: string;
   questionTags?: string[];
   latexVersion: number;

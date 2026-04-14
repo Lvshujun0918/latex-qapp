@@ -2,6 +2,7 @@ import { apiClient } from '@/services/api';
 import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
 import { Capacitor } from '@capacitor/core';
 import type { VisionLatexDraft, VisionStreamEvent } from '@/types/domain';
+import { assembleLatexFromQuestionJson, normalizeQuestionTypeLabel, normalizeSubjectLabel } from '@/utils/question-format';
 
 const DRAFT_STORAGE_KEY = 'draft_record_from_camera';
 
@@ -55,6 +56,27 @@ export async function pickImageAsBase64(source: 'camera' | 'album' | 'file' = 'c
   }
 
   return photo.base64String;
+}
+
+export async function pickImageAsDataUrl(source: 'camera' | 'album' | 'file' = 'camera'): Promise<string> {
+  if (!Capacitor.isNativePlatform()) {
+    return pickImageFromFileAsDataUrl(source === 'camera');
+  }
+
+  const nativeSource = source === 'camera' ? CameraSource.Camera : CameraSource.Photos;
+  const photo = await Camera.getPhoto({
+    quality: 85,
+    source: nativeSource,
+    resultType: CameraResultType.DataUrl,
+    allowEditing: false,
+  });
+
+  const dataUrl = photo.dataUrl || '';
+  if (!dataUrl) {
+    throw new Error('未获取到照片数据');
+  }
+
+  return dataUrl;
 }
 
 export async function generateLatexDraftByVision(imageBase64: string): Promise<VisionLatexDraft> {
@@ -233,40 +255,6 @@ function normalizeDraftFromPayload(payload: any): VisionLatexDraft {
   };
 }
 
-function assembleLatexFromQuestionJson(questionJson: any): string {
-  if (!questionJson || typeof questionJson !== 'object') {
-    return '';
-  }
-
-  const questionType = normalizeQuestionTypeLabel(questionJson.question_type);
-  const stem = String(questionJson.stem ?? '').trim();
-  if (!stem) {
-    return '';
-  }
-
-  if (questionType === '选择') {
-    const options = Array.isArray(questionJson.options)
-      ? questionJson.options.map((it: any) => String(it ?? '').trim()).filter(Boolean)
-      : [];
-    if (!options.length) {
-      return stem;
-    }
-    return `${stem}\n\\begin{choices}\n${options.map((opt: string) => `\\item ${opt}`).join('\n')}\n\\end{choices}`;
-  }
-
-  if (questionType === '解答') {
-    const subQuestions = Array.isArray(questionJson.sub_questions)
-      ? questionJson.sub_questions.map((it: any) => String(it ?? '').trim()).filter(Boolean)
-      : [];
-    if (!subQuestions.length) {
-      return stem;
-    }
-    return `${stem}\n\\begin{enumerate}\n${subQuestions.map((sq: string) => `\\item ${sq}`).join('\n')}\n\\end{enumerate}`;
-  }
-
-  return stem;
-}
-
 function extractLatexCode(text: string): string {
   if (!text) {
     return '';
@@ -310,25 +298,6 @@ function mapTitleFromType(questionType: string): string {
   }
 }
 
-function normalizeSubjectLabel(input?: string): string {
-  const value = String(input || '').trim().toLowerCase();
-  if (value === 'math' || value === '数学') return '数学';
-  if (value === 'physics' || value === '物理') return '物理';
-  if (value === 'chemistry' || value === '化学') return '化学';
-  if (value === 'biology' || value === '生物') return '生物';
-  if (!value || value === 'unknown' || value === '未知') return '未知';
-  return String(input || '未知');
-}
-
-function normalizeQuestionTypeLabel(input?: string): string {
-  const value = String(input || '').trim().toLowerCase();
-  if (['choice', '选择', '选择题', 'single_choice', 'multiple_choice'].includes(value)) return '选择';
-  if (['fill_blank', '填空', '填空题'].includes(value)) return '填空';
-  if (['essay', '解答', '解答题', 'subjective', '大题'].includes(value)) return '解答';
-  if (!value || value === 'unknown' || value === '未知') return '未知';
-  return String(input || '未知');
-}
-
 function pickImageFromFileAsBase64(preferCamera: boolean): Promise<string> {
   return new Promise((resolve, reject) => {
     const input = document.createElement('input');
@@ -357,6 +326,34 @@ function pickImageFromFileAsBase64(preferCamera: boolean): Promise<string> {
   });
 }
 
+function pickImageFromFileAsDataUrl(preferCamera: boolean): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    if (preferCamera) {
+      input.setAttribute('capture', 'environment');
+    }
+
+    input.onchange = async () => {
+      const file = input.files?.[0];
+      if (!file) {
+        reject(new Error('未选择图片'));
+        return;
+      }
+
+      try {
+        const data = await fileToDataUrl(file);
+        resolve(data);
+      } catch (error) {
+        reject(error);
+      }
+    };
+
+    input.click();
+  });
+}
+
 function fileToBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -365,6 +362,15 @@ function fileToBase64(file: File): Promise<string> {
       const idx = result.indexOf(',');
       resolve(idx >= 0 ? result.slice(idx + 1) : result);
     };
+    reader.onerror = () => reject(new Error('读取文件失败'));
+    reader.readAsDataURL(file);
+  });
+}
+
+function fileToDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ''));
     reader.onerror = () => reject(new Error('读取文件失败'));
     reader.readAsDataURL(file);
   });
