@@ -34,32 +34,20 @@
         </div>
 
         <div class="form-item">
-          <Label>答案来源</Label>
+          <Label>答案与解析来源</Label>
           <div class="mode-row">
-            <Button size="sm" :variant="answerMode === 'ai' ? 'default' : 'outline'" @click="setAnswerMode('ai')">AI 解析</Button>
-            <Button size="sm" :variant="answerMode === 'image' ? 'default' : 'outline'" @click="setAnswerMode('image')">拍照/相册上传</Button>
+            <Button size="sm" :variant="solutionMode === 'ai' ? 'default' : 'outline'" @click="setSolutionMode('ai')">AI 解析</Button>
+            <Button size="sm" :variant="solutionMode === 'image' ? 'default' : 'outline'" @click="setSolutionMode('image')">拍照/相册上传</Button>
           </div>
-          <div v-if="answerMode === 'ai'" class="preview-wrap">
+          <div v-if="solutionMode === 'ai'" class="preview-wrap">
+            <p class="preview-label">答案预览</p>
             <LatexView :source="answerText || '暂无答案，点击上方“生成解答”'" class="latex-panel" />
-          </div>
-          <div v-else class="preview-wrap">
-            <Button variant="outline" size="sm" @click="openImagePicker('answer')">选择答案图片</Button>
-            <img v-if="answerImageDataUrl" :src="answerImageDataUrl" alt="答案图片" class="upload-preview" />
-          </div>
-        </div>
-
-        <div class="form-item">
-          <Label>解析来源</Label>
-          <div class="mode-row">
-            <Button size="sm" :variant="analysisMode === 'ai' ? 'default' : 'outline'" @click="setAnalysisMode('ai')">AI 解析</Button>
-            <Button size="sm" :variant="analysisMode === 'image' ? 'default' : 'outline'" @click="setAnalysisMode('image')">拍照/相册上传</Button>
-          </div>
-          <div v-if="analysisMode === 'ai'" class="preview-wrap">
+            <p class="preview-label">解析预览</p>
             <MarkdownView :source="analysisText || '暂无解析，点击上方“生成解答”'" class="latex-panel" />
           </div>
           <div v-else class="preview-wrap">
-            <Button variant="outline" size="sm" @click="openImagePicker('analysis')">选择解析图片</Button>
-            <img v-if="analysisImageDataUrl" :src="analysisImageDataUrl" alt="解析图片" class="upload-preview" />
+            <Button variant="outline" size="sm" @click="openImagePicker">选择答案与解析图片</Button>
+            <img v-if="solutionImageDataUrl" :src="solutionImageDataUrl" alt="答案与解析图片" class="upload-preview" />
           </div>
         </div>
       </CardContent>
@@ -102,14 +90,11 @@ const subject = ref('未知');
 const questionType = ref('未知');
 const latexSource = ref('');
 const latexPreview = ref('');
-const answerMode = ref<'ai' | 'image'>('ai');
+const solutionMode = ref<'ai' | 'image'>('ai');
 const answerText = ref('');
-const answerImageDataUrl = ref('');
-const analysisMode = ref<'ai' | 'image'>('ai');
 const analysisText = ref('');
-const analysisImageDataUrl = ref('');
+const solutionImageDataUrl = ref('');
 const sourceDialogOpen = ref(false);
-const pickingTarget = ref<'answer' | 'analysis'>('answer');
 const questionTags = ref<string[]>([]);
 const isSolving = ref(false);
 const solvingStage = ref('');
@@ -131,10 +116,10 @@ onMounted(() => {
   questionType.value = draft.questionType ?? questionType.value;
   latexSource.value = draft.latexSource || '';
   latexPreview.value = draft.latexQuestion || assembleLatexFromQuestionJson(draft.questionJson);
-  answerMode.value = 'ai';
+  solutionMode.value = 'ai';
   answerText.value = draft.latexAnswer;
-  analysisMode.value = 'ai';
   analysisText.value = draft.latexSolution ?? '';
+  solutionImageDataUrl.value = '';
   questionTags.value = draft.tags;
   clearVisionDraftStorage();
 });
@@ -176,8 +161,8 @@ async function generateSolve() {
       });
     }
 
-    answerMode.value = 'ai';
-    analysisMode.value = 'ai';
+    solutionMode.value = 'ai';
+    solutionImageDataUrl.value = '';
   } catch (error: any) {
     errorMessage.value = error?.message || '解答生成失败，请稍后重试。';
   } finally {
@@ -198,12 +183,8 @@ async function streamTextDisplay(text: string, onUpdate: (text: string) => void)
 }
 
 async function save() {
-  if (answerMode.value === 'image' && !answerImageDataUrl.value) {
-    errorMessage.value = '请先上传答案图片。';
-    return;
-  }
-  if (analysisMode.value === 'image' && !analysisImageDataUrl.value) {
-    errorMessage.value = '请先上传解析图片。';
+  if (solutionMode.value === 'image' && !solutionImageDataUrl.value) {
+    errorMessage.value = '请先上传答案解析图片。';
     return;
   }
 
@@ -214,12 +195,10 @@ async function save() {
       question_type: questionType.value,
       title: title.value,
       latex_source: latexSource.value,
-      answer_mode: answerMode.value,
-      answer_text: answerMode.value === 'ai' ? answerText.value : '',
-      answer_image_data_url: answerMode.value === 'image' ? answerImageDataUrl.value : '',
-      analysis_mode: analysisMode.value,
-      analysis_text: analysisMode.value === 'ai' ? analysisText.value : '',
-      analysis_image_data_url: analysisMode.value === 'image' ? analysisImageDataUrl.value : '',
+      solution_mode: solutionMode.value,
+      answer_text: solutionMode.value === 'ai' ? answerText.value : '',
+      analysis_text: solutionMode.value === 'ai' ? analysisText.value : '',
+      solution_image_data_url: solutionMode.value === 'image' ? solutionImageDataUrl.value : '',
       question_tags: tagList.value,
     });
 
@@ -229,26 +208,17 @@ async function save() {
   }
 }
 
-function setAnswerMode(mode: 'ai' | 'image') {
-  answerMode.value = mode;
+function setSolutionMode(mode: 'ai' | 'image') {
+  solutionMode.value = mode;
   if (mode === 'ai') {
-    answerImageDataUrl.value = '';
+    solutionImageDataUrl.value = '';
   } else {
     answerText.value = '';
-  }
-}
-
-function setAnalysisMode(mode: 'ai' | 'image') {
-  analysisMode.value = mode;
-  if (mode === 'ai') {
-    analysisImageDataUrl.value = '';
-  } else {
     analysisText.value = '';
   }
 }
 
-function openImagePicker(target: 'answer' | 'analysis') {
-  pickingTarget.value = target;
+function openImagePicker() {
   sourceDialogOpen.value = true;
 }
 
@@ -256,15 +226,9 @@ async function pickModeImage(source: 'camera' | 'album') {
   try {
     errorMessage.value = '';
     const dataUrl = await pickImageAsDataUrl(source);
-    if (pickingTarget.value === 'answer') {
-      answerMode.value = 'image';
-      answerImageDataUrl.value = dataUrl;
-      answerText.value = '';
-      return;
-    }
-
-    analysisMode.value = 'image';
-    analysisImageDataUrl.value = dataUrl;
+    solutionMode.value = 'image';
+    solutionImageDataUrl.value = dataUrl;
+    answerText.value = '';
     analysisText.value = '';
   } catch (error: any) {
     errorMessage.value = error?.message || '上传图片失败，请重试。';
@@ -352,6 +316,12 @@ h4 {
 .preview-wrap {
   display: grid;
   gap: 8px;
+}
+
+.preview-label {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: #64748b;
 }
 
 .upload-preview {

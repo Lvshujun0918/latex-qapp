@@ -21,9 +21,20 @@
 
     <Card class="app-page-shell detail-shell">
       <CardHeader class="detail-header p-0 pb-3">
-        <CardTitle>AI 解析</CardTitle>
+        <CardTitle>答案与解析</CardTitle>
       </CardHeader>
       <CardContent class="detail-content p-0">
+        <div class="analysis-generate">
+          <p>可切换为 AI 文本解析或上传一张答案解析图片。</p>
+          <div class="mode-row">
+            <Button size="sm" :variant="solutionMode === 'ai' ? 'default' : 'outline'" @click="setSolutionMode('ai')">AI 解析</Button>
+            <Button size="sm" :variant="solutionMode === 'image' ? 'default' : 'outline'" @click="setSolutionMode('image')">上传图片</Button>
+            <Button v-if="solutionMode === 'image'" size="sm" variant="outline" @click="openImagePicker">选择图片</Button>
+            <Button size="sm" variant="outline" :disabled="savingMode" @click="saveSolutionMode">保存设置</Button>
+          </div>
+          <img v-if="solutionMode === 'image' && solutionImageDataUrl" :src="solutionImageDataUrl" alt="答案解析图片" class="media-preview" />
+        </div>
+
         <div v-if="needsAiGenerate" class="analysis-generate">
           <p>当前题目尚未生成 AI 答案与解析。</p>
           <Button :disabled="generatingAi" @click="generateAiSolution">
@@ -38,8 +49,8 @@
           </button>
           <div v-show="answerOpen" class="collapse-content">
             <img
-              v-if="answerMode === 'image' && answerImageDataUrl"
-              :src="answerImageDataUrl"
+              v-if="solutionMode === 'image' && solutionImageDataUrl"
+              :src="solutionImageDataUrl"
               alt="答案图片"
               class="media-preview"
             />
@@ -54,16 +65,24 @@
           </button>
           <div v-show="analysisOpen" class="collapse-content">
             <img
-              v-if="analysisMode === 'image' && analysisImageDataUrl"
-              :src="analysisImageDataUrl"
+              v-if="solutionMode === 'image' && solutionImageDataUrl"
+              :src="solutionImageDataUrl"
               alt="解析图片"
               class="media-preview"
             />
             <MarkdownView v-else :source="analysisText || '暂无解析'" class="markdown-block" />
           </div>
         </div>
+
+        <p v-if="errorMessage" class="error-tip">{{ errorMessage }}</p>
       </CardContent>
     </Card>
+
+    <ImageSourceDialog
+      :open="sourceDialogOpen"
+      @update:open="(val) => (sourceDialogOpen = val)"
+      @select="pickModeImage"
+    />
   </section>
 </template>
 
@@ -74,7 +93,8 @@ import { useRecordStore } from '@/stores/record';
 import { useTheme } from '@/composables/useTheme';
 import LatexView from '@/components/LatexView.vue';
 import MarkdownView from '@/components/MarkdownView.vue';
-import { generateSolutionByLatexStream } from '@/services/ai';
+import { generateSolutionByLatexStream, pickImageAsDataUrl } from '@/services/ai';
+import ImageSourceDialog from '@/components/ImageSourceDialog.vue';
 import { toSavePayload } from '@/services/records';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -84,24 +104,25 @@ const router = useRouter();
 const recordStore = useRecordStore();
 const { resolvedTheme } = useTheme();
 const generatingAi = ref(false);
+const savingMode = ref(false);
 const answerOpen = ref(false);
 const analysisOpen = ref(false);
-const answerMode = ref<'ai' | 'image'>('ai');
-const analysisMode = ref<'ai' | 'image'>('ai');
+const solutionMode = ref<'ai' | 'image'>('ai');
 const answerText = ref('');
 const analysisText = ref('');
-const answerImageDataUrl = ref('');
-const analysisImageDataUrl = ref('');
+const solutionImageDataUrl = ref('');
+const sourceDialogOpen = ref(false);
+const errorMessage = ref('');
 
 const record = computed(() => recordStore.records.find((r) => r.id === Number(route.params.id)));
 const hasAnswer = computed(() =>
-  answerMode.value === 'image'
-    ? answerImageDataUrl.value.trim().length > 0
+  solutionMode.value === 'image'
+    ? solutionImageDataUrl.value.trim().length > 0
     : answerText.value.trim().length > 0,
 );
 const hasAnalysis = computed(() =>
-  analysisMode.value === 'image'
-    ? analysisImageDataUrl.value.trim().length > 0
+  solutionMode.value === 'image'
+    ? solutionImageDataUrl.value.trim().length > 0
     : analysisText.value.trim().length > 0,
 );
 const needsAiGenerate = computed(() => !hasAnswer.value || !hasAnalysis.value);
@@ -109,12 +130,10 @@ const needsAiGenerate = computed(() => !hasAnswer.value || !hasAnalysis.value);
 watch(
   record,
   (value) => {
-    answerMode.value = value?.answerMode === 'image' ? 'image' : 'ai';
-    analysisMode.value = value?.analysisMode === 'image' ? 'image' : 'ai';
+    solutionMode.value = value?.solutionMode === 'image' ? 'image' : 'ai';
     answerText.value = value?.answerText ?? '';
     analysisText.value = value?.analysisText ?? '';
-    answerImageDataUrl.value = value?.answerImageDataUrl ?? '';
-    analysisImageDataUrl.value = value?.analysisImageDataUrl ?? '';
+    solutionImageDataUrl.value = value?.solutionImageDataUrl ?? '';
   },
   { immediate: true },
 );
@@ -139,6 +158,7 @@ async function generateAiSolution() {
 
   generatingAi.value = true;
   try {
+    errorMessage.value = '';
     const solved = await generateSolutionByLatexStream({
       subject: record.value.subject,
       questionType: record.value.questionType,
@@ -162,23 +182,73 @@ async function generateAiSolution() {
 
     await recordStore.updateById(record.value.id, {
       ...toSavePayload(record.value),
-      answer_mode: 'ai',
+      solution_mode: 'ai',
       answer_text: answerText.value || solved.latexAnswer,
-      answer_image_data_url: '',
-      analysis_mode: 'ai',
       analysis_text: analysisText.value || solved.latexSolution,
-      analysis_image_data_url: '',
+      solution_image_data_url: '',
     });
 
-    answerMode.value = 'ai';
-    analysisMode.value = 'ai';
-    answerImageDataUrl.value = '';
-    analysisImageDataUrl.value = '';
+    solutionMode.value = 'ai';
+    solutionImageDataUrl.value = '';
 
     answerOpen.value = true;
     analysisOpen.value = true;
+  } catch (error: any) {
+    errorMessage.value = error?.message || 'AI 生成失败，请重试。';
   } finally {
     generatingAi.value = false;
+  }
+}
+
+function setSolutionMode(mode: 'ai' | 'image') {
+  solutionMode.value = mode;
+  if (mode === 'ai') {
+    solutionImageDataUrl.value = '';
+    return;
+  }
+  answerText.value = '';
+  analysisText.value = '';
+}
+
+function openImagePicker() {
+  sourceDialogOpen.value = true;
+}
+
+async function pickModeImage(source: 'camera' | 'album') {
+  try {
+    errorMessage.value = '';
+    solutionMode.value = 'image';
+    solutionImageDataUrl.value = await pickImageAsDataUrl(source);
+    answerText.value = '';
+    analysisText.value = '';
+  } catch (error: any) {
+    errorMessage.value = error?.message || '上传图片失败，请重试。';
+  }
+}
+
+async function saveSolutionMode() {
+  if (!record.value || savingMode.value) {
+    return;
+  }
+  if (solutionMode.value === 'image' && !solutionImageDataUrl.value) {
+    errorMessage.value = '请先上传答案解析图片。';
+    return;
+  }
+
+  savingMode.value = true;
+  try {
+    errorMessage.value = '';
+    await recordStore.updateById(record.value.id, {
+      ...toSavePayload(record.value),
+      solution_mode: solutionMode.value,
+      answer_text: solutionMode.value === 'ai' ? answerText.value : '',
+      analysis_text: solutionMode.value === 'ai' ? analysisText.value : '',
+      solution_image_data_url: solutionMode.value === 'image' ? solutionImageDataUrl.value : '',
+    });
+  } catch (error: any) {
+    errorMessage.value = error?.message || '保存失败，请重试。';
+  } finally {
+    savingMode.value = false;
   }
 }
 
@@ -235,6 +305,12 @@ function formatQuestionType(questionType?: string) {
   gap: 10px;
 }
 
+.mode-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .analysis-generate p {
   margin: 0;
   color: #64748b;
@@ -264,6 +340,12 @@ function formatQuestionType(questionType?: string) {
 
 .collapse-content {
   padding: 0 2px;
+}
+
+.error-tip {
+  margin: 0;
+  color: #dc2626;
+  font-size: 13px;
 }
 
 .media-preview {

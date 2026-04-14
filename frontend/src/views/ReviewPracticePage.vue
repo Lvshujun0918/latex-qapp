@@ -42,8 +42,8 @@
         <div v-if="stage !== 'waiting'" class="answer-block">
           <h4>标准答案</h4>
           <img
-            v-if="record.answerMode === 'image' && record.answerImageDataUrl"
-            :src="record.answerImageDataUrl"
+            v-if="record.solutionMode === 'image' && record.solutionImageDataUrl"
+            :src="record.solutionImageDataUrl"
             alt="标准答案图片"
             class="media-preview"
           />
@@ -58,8 +58,8 @@
         <div v-if="stage === 'judged-wrong'" class="analysis-block">
           <h4>解析</h4>
           <img
-            v-if="record.analysisMode === 'image' && record.analysisImageDataUrl"
-            :src="record.analysisImageDataUrl"
+            v-if="record.solutionMode === 'image' && record.solutionImageDataUrl"
+            :src="record.solutionImageDataUrl"
             alt="解析图片"
             class="media-preview"
           />
