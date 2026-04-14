@@ -17,6 +17,7 @@ func New(
 	aiHandler *handler.AIHandler,
 	statsHandler *handler.StatsHandler,
 	pdfHandler *handler.PDFHandler,
+	systemHandler *handler.SystemHandler,
 ) *gin.Engine {
 	r := gin.Default()
 
@@ -83,6 +84,11 @@ func New(
 			pdf.GET("/jobs", pdfHandler.ListJobs)
 			pdf.GET("/jobs/:jobId", pdfHandler.JobDetail)
 			pdf.POST("/jobs/:jobId/questions/:recordId/review", pdfHandler.UpdateQuestionReview)
+		}
+
+		system := api.Group("/system", middleware.JWTAuth(cfg.JWTSecret))
+		{
+			system.GET("/runtime", systemHandler.Runtime)
 		}
 	}
 

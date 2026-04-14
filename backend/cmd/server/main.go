@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"time"
 
 	"latex-qapp/backend/internal/config"
 	"latex-qapp/backend/internal/db"
@@ -27,8 +28,9 @@ func main() {
 	aiHandler := handler.NewAIHandler(aiService)
 	statsHandler := handler.NewStatsHandler()
 	pdfHandler := handler.NewPDFHandler(database, recordService)
+	systemHandler := handler.NewSystemHandler(time.Now())
 
-	r := router.New(cfg, authHandler, recordHandler, aiHandler, statsHandler, pdfHandler)
+	r := router.New(cfg, authHandler, recordHandler, aiHandler, statsHandler, pdfHandler, systemHandler)
 
 	if err := r.Run(":" + cfg.Port); err != nil {
 		log.Fatalf("server run failed: %v", err)
