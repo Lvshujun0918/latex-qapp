@@ -1,8 +1,10 @@
 package handler
 
 import (
+	"encoding/json"
 	"strconv"
 
+	"latex-qapp/backend/internal/model"
 	"latex-qapp/backend/internal/service"
 	"latex-qapp/backend/pkg/httputil"
 
@@ -24,7 +26,11 @@ func (h *RecordHandler) List(c *gin.Context) {
 		httputil.InternalError(c, err.Error())
 		return
 	}
-	httputil.OK(c, items)
+	rows := make([]recordDTO, 0, len(items))
+	for _, item := range items {
+		rows = append(rows, toRecordDTO(item))
+	}
+	httputil.OK(c, rows)
 }
 
 func (h *RecordHandler) Create(c *gin.Context) {
@@ -40,7 +46,7 @@ func (h *RecordHandler) Create(c *gin.Context) {
 		httputil.BadRequest(c, err.Error())
 		return
 	}
-	httputil.OK(c, item)
+	httputil.OK(c, toRecordDTO(*item))
 }
 
 func (h *RecordHandler) Get(c *gin.Context) {
@@ -51,7 +57,7 @@ func (h *RecordHandler) Get(c *gin.Context) {
 		httputil.BadRequest(c, "record not found")
 		return
 	}
-	httputil.OK(c, item)
+	httputil.OK(c, toRecordDTO(*item))
 }
 
 func (h *RecordHandler) Update(c *gin.Context) {
@@ -69,7 +75,7 @@ func (h *RecordHandler) Update(c *gin.Context) {
 		httputil.BadRequest(c, err.Error())
 		return
 	}
-	httputil.OK(c, item)
+	httputil.OK(c, toRecordDTO(*item))
 }
 
 func (h *RecordHandler) Delete(c *gin.Context) {
@@ -80,4 +86,36 @@ func (h *RecordHandler) Delete(c *gin.Context) {
 		return
 	}
 	httputil.OK(c, gin.H{"deleted": true})
+}
+
+type recordDTO struct {
+	model.ErrorRecord
+	QuestionTags []string `json:"question_tags"`
+}
+
+func toRecordDTO(item model.ErrorRecord) recordDTO {
+	return recordDTO{
+		ErrorRecord:  item,
+		QuestionTags: parseRecordQuestionTags(item.QuestionTagsJSON),
+	}
+}
+
+func parseRecordQuestionTags(raw string) []string {
+	if raw == "" {
+		return []string{}
+	}
+
+	var tags []string
+	if err := json.Unmarshal([]byte(raw), &tags); err != nil {
+		return []string{}
+	}
+
+	clean := make([]string, 0, len(tags))
+	for _, tag := range tags {
+		if tag == "" {
+			continue
+		}
+		clean = append(clean, tag)
+	}
+	return clean
 }
