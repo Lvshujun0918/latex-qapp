@@ -58,9 +58,11 @@ function isActive(path: string) {
 }
 
 .tabs-content {
+  min-height: 100dvh;
   padding-top: env(safe-area-inset-top, 0px);
   padding-left: 16px;
   padding-right: 16px;
+  padding-bottom: calc(92px + env(safe-area-inset-bottom, 0px));
 }
 
 .main-tabbar {
