@@ -31,30 +31,15 @@
 
         <Card class="app-soft-card info-card">
             <CardHeader>
-                <CardDescription>产品定位</CardDescription>
-                <CardTitle>我们在做什么</CardTitle>
+                <CardTitle>关于本应用</CardTitle>
             </CardHeader>
             <CardContent>
-                <ul class="about-list">
-                    <li>帮助家长高效完成孩子错题录入、结构化和复习闭环。</li>
-                    <li>把题目、答案、错因统一成可追踪的家庭学习记录。</li>
-                    <li>在移动端提供清晰、轻量、可回溯的陪学体验。</li>
-                </ul>
+                面向家长的智能伴学错题本。支持拍照识别题目、LaTeX 草稿生成、AI 解题解析、错题管理与统计、按题目导出 PDF。由LaTeX与AI视觉强力驱动，0题库却能较好完成错题整理与回顾，帮助孩子高效复习、查漏补缺。我们专注于错题处理流程的智能化和易用性，致力于成为家长的得力工具，陪伴孩子的学习成长。
             </CardContent>
         </Card>
+        
+        <p class="copyright">Make with ❤️ by Lsj</p>
 
-        <Card class="app-soft-card info-card">
-            <CardHeader>
-                <CardDescription>隐私说明</CardDescription>
-                <CardTitle>数据与权限</CardTitle>
-            </CardHeader>
-            <CardContent class="policy-text">
-                <p>仅在题目处理流程中使用你主动选择的图片内容。</p>
-                <p>家长账号与学习记录仅用于同步、导出和统计，不用于广告投放。</p>
-            </CardContent>
-        </Card>
-
-        <Button variant="outline" class="back-btn" @click="goBack">返回我的页面</Button>
     </section>
 </template>
 
@@ -194,6 +179,14 @@ function goBack() {
     width: 100%;
 }
 
+.copyright {
+    margin: 4px 0 0;
+    text-align: center;
+    font-size: 12px;
+    color: #64748b;
+    letter-spacing: 0.02em;
+}
+
 .is-dark .hero-text h2,
 .is-dark .info-row strong {
     color: #f8fafc;
@@ -203,6 +196,10 @@ function goBack() {
 .is-dark .info-row span,
 .is-dark .about-list,
 .is-dark .policy-text p {
+    color: #94a3b8;
+}
+
+.is-dark .copyright {
     color: #94a3b8;
 }
 
