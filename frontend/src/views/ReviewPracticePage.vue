@@ -31,6 +31,7 @@
           <Badge variant="outline">{{ formatSubject(record.subject) }}</Badge>
           <Badge variant="outline">{{ formatQuestionType(record.questionType) }}</Badge>
           <Badge variant="outline">当前掌握度 {{ record.masteryLevel }}%</Badge>
+          <Badge v-for="tag in reviewTags" :key="tag" variant="outline">标签 {{ tag }}</Badge>
         </div>
 
         <div v-if="stage === 'waiting'" class="actions-row">
@@ -105,6 +106,11 @@ const savingResult = ref(false);
 const errorMessage = ref('');
 
 const record = computed(() => recordStore.records.find((item) => item.id === Number(route.params.id)));
+const reviewTags = computed(() => {
+  const tags = record.value?.questionTags ?? [];
+  const clean = tags.map((tag) => String(tag || '').trim()).filter((tag) => tag.length > 0);
+  return clean.length ? clean.slice(0, 4) : ['未标记'];
+});
 
 const EBBINGHAUS_INTERVALS = [1, 2, 4, 7, 15, 30];
 

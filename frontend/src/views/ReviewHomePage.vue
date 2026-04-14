@@ -67,11 +67,14 @@
                 <div class="review-main">
                     <div class="title-row">
                         <p class="review-title">{{ item.title || '未命名题目' }}</p>
-                        <span class="result-badge" :class="resultClass(item.lastReviewResult)">{{
-                            resultText(item.lastReviewResult) }}</span>
+                        <div class="title-badges">
+                            <span class="tag-focus">{{ item.primaryTag }}</span>
+                            <span class="result-badge" :class="resultClass(item.lastReviewResult)">{{
+                                resultText(item.lastReviewResult) }}</span>
+                        </div>
                     </div>
                     <p class="review-meta">
-                        {{ formatSubject(item.subject) }} · 第 {{ item.reviewCount + 1 }} 次 · 目标 {{
+                        标签 {{ item.tagPreview.join(' / ') }} · {{ formatSubject(item.subject) }} · 第 {{ item.reviewCount + 1 }} 次 · 目标 {{
                             item.nextInterval }} 天
                     </p>
                     <div class="progress-row">
@@ -100,6 +103,7 @@ import { Brain, CalendarCheck2, Clock3, NotebookPen } from 'lucide-vue-next';
 import { useTheme } from '@/composables/useTheme';
 import { Button } from '@/components/ui/button';
 import { useRecordStore } from '@/stores/record';
+import { buildTagSummaries, scoreRecordByTags, summarizeTags } from '@/utils/tag-analytics';
 
 type ReviewTab = 'due' | 'manual';
 
@@ -111,8 +115,14 @@ const { records } = storeToRefs(recordStore);
 const { resolvedTheme } = useTheme();
 const activeTab = ref<ReviewTab>('due');
 
+const tagPriorityMap = computed(() => {
+    const summaries = buildTagSummaries(records.value);
+    return new Map(summaries.map((item) => [item.tag, item.priorityScore]));
+});
+
 const scheduleRows = computed(() => {
     const now = Date.now();
+    const priorityMap = tagPriorityMap.value;
     return records.value
         .map((record) => {
             const reviewCount = Math.max(0, Number(record.reviewCount || 0));
@@ -138,21 +148,26 @@ const scheduleRows = computed(() => {
                 ? Math.max(0, Math.min(100, Math.round((1 - Math.max(0, nextReviewTime - now) / (nextInterval * 86400000)) * 100)))
                 : Math.max(0, Math.min(100, Math.round((elapsedDays / nextInterval) * 100)));
 
+            const tagScore = scoreRecordByTags(record, priorityMap);
+
             return {
                 ...record,
                 nextInterval,
                 overdueDays,
                 progressPercent,
+                primaryTag: tagScore.primaryTag,
+                tagPriorityScore: tagScore.score,
+                tagPreview: summarizeTags(record.questionTags, 3),
             };
         })
-        .sort((a, b) => b.overdueDays - a.overdueDays);
+        .sort((a, b) => b.overdueDays - a.overdueDays || b.tagPriorityScore - a.tagPriorityScore);
 });
 
 const dueToday = computed(() => scheduleRows.value.filter((row) => row.overdueDays >= 0));
 const manualPool = computed(() =>
     scheduleRows.value
         .filter((row) => row.overdueDays < 0)
-        .sort((a, b) => b.progressPercent - a.progressPercent || a.masteryLevel - b.masteryLevel)
+    .sort((a, b) => b.tagPriorityScore - a.tagPriorityScore || b.progressPercent - a.progressPercent || a.masteryLevel - b.masteryLevel)
         .slice(0, 16),
 );
 const activeItems = computed(() => (activeTab.value === 'due' ? dueToday.value : manualPool.value));
@@ -372,6 +387,22 @@ button.metric-pill:hover {
     justify-content: space-between;
 }
 
+.title-badges {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.tag-focus {
+    font-size: 10px;
+    border-radius: 999px;
+    padding: 2px 8px;
+    color: #1d4ed8;
+    background: rgba(37, 99, 235, 0.14);
+    border: 1px solid rgba(37, 99, 235, 0.28);
+    white-space: nowrap;
+}
+
 .review-title {
     margin: 0;
     font-size: 14px;
@@ -502,6 +533,12 @@ button.metric-pill:hover {
 
 .is-dark .result-badge.none {
     color: #cbd5e1;
+}
+
+.is-dark .tag-focus {
+    color: #dbeafe;
+    background: rgba(37, 99, 235, 0.28);
+    border-color: rgba(96, 165, 250, 0.44);
 }
 
 .is-dark .review-urgency.manual {
