@@ -37,7 +37,13 @@
             <span>{{ answerOpen ? '收起' : '展开' }}</span>
           </button>
           <div v-show="answerOpen" class="collapse-content">
-            <LatexView :source="answerText || '暂无答案'" class="latex-block" />
+            <img
+              v-if="answerMode === 'image' && answerImageDataUrl"
+              :src="answerImageDataUrl"
+              alt="答案图片"
+              class="media-preview"
+            />
+            <LatexView v-else :source="answerText || '暂无答案'" class="latex-block" />
           </div>
         </div>
 
@@ -47,7 +53,13 @@
             <span>{{ analysisOpen ? '收起' : '展开' }}</span>
           </button>
           <div v-show="analysisOpen" class="collapse-content">
-            <MarkdownView :source="analysisText || '暂无解析'" class="markdown-block" />
+            <img
+              v-if="analysisMode === 'image' && analysisImageDataUrl"
+              :src="analysisImageDataUrl"
+              alt="解析图片"
+              class="media-preview"
+            />
+            <MarkdownView v-else :source="analysisText || '暂无解析'" class="markdown-block" />
           </div>
         </div>
       </CardContent>
@@ -74,19 +86,35 @@ const { resolvedTheme } = useTheme();
 const generatingAi = ref(false);
 const answerOpen = ref(false);
 const analysisOpen = ref(false);
+const answerMode = ref<'ai' | 'image'>('ai');
+const analysisMode = ref<'ai' | 'image'>('ai');
 const answerText = ref('');
 const analysisText = ref('');
+const answerImageDataUrl = ref('');
+const analysisImageDataUrl = ref('');
 
 const record = computed(() => recordStore.records.find((r) => r.id === Number(route.params.id)));
-const hasAnswer = computed(() => answerText.value.trim().length > 0);
-const hasAnalysis = computed(() => analysisText.value.trim().length > 0);
+const hasAnswer = computed(() =>
+  answerMode.value === 'image'
+    ? answerImageDataUrl.value.trim().length > 0
+    : answerText.value.trim().length > 0,
+);
+const hasAnalysis = computed(() =>
+  analysisMode.value === 'image'
+    ? analysisImageDataUrl.value.trim().length > 0
+    : analysisText.value.trim().length > 0,
+);
 const needsAiGenerate = computed(() => !hasAnswer.value || !hasAnalysis.value);
 
 watch(
   record,
   (value) => {
-    answerText.value = value?.latexAnswer ?? '';
-    analysisText.value = value?.mistakeReason ?? '';
+    answerMode.value = value?.answerMode === 'image' ? 'image' : 'ai';
+    analysisMode.value = value?.analysisMode === 'image' ? 'image' : 'ai';
+    answerText.value = value?.answerText ?? '';
+    analysisText.value = value?.analysisText ?? '';
+    answerImageDataUrl.value = value?.answerImageDataUrl ?? '';
+    analysisImageDataUrl.value = value?.analysisImageDataUrl ?? '';
   },
   { immediate: true },
 );
@@ -114,6 +142,7 @@ async function generateAiSolution() {
     const solved = await generateSolutionByLatexStream({
       subject: record.value.subject,
       questionType: record.value.questionType,
+      latexQuestion: record.value.latexSource,
       latexSource: record.value.latexSource,
     }, () => {});
 
@@ -133,9 +162,18 @@ async function generateAiSolution() {
 
     await recordStore.updateById(record.value.id, {
       ...toSavePayload(record.value),
-      latex_answer: answerText.value || solved.latexAnswer,
-      mistake_reason: analysisText.value || solved.latexSolution,
+      answer_mode: 'ai',
+      answer_text: answerText.value || solved.latexAnswer,
+      answer_image_data_url: '',
+      analysis_mode: 'ai',
+      analysis_text: analysisText.value || solved.latexSolution,
+      analysis_image_data_url: '',
     });
+
+    answerMode.value = 'ai';
+    analysisMode.value = 'ai';
+    answerImageDataUrl.value = '';
+    analysisImageDataUrl.value = '';
 
     answerOpen.value = true;
     analysisOpen.value = true;
@@ -226,6 +264,15 @@ function formatQuestionType(questionType?: string) {
 
 .collapse-content {
   padding: 0 2px;
+}
+
+.media-preview {
+  width: 100%;
+  max-height: 340px;
+  object-fit: contain;
+  border-radius: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  background: rgba(248, 250, 252, 0.78);
 }
 
 .is-dark .collapse-trigger {
