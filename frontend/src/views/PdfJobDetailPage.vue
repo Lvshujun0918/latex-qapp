@@ -103,6 +103,7 @@ import { useTheme } from '@/composables/useTheme';
 import { upsertPdfExportHistory } from '@/services/pdf-history';
 import { getPdfJob, updatePdfQuestionReview } from '@/services/pdf';
 import { openPdfFromLocalUri, saveRemotePdfToDevice } from '@/services/pdf-native';
+import { assembleLatexFromQuestionJson } from '@/utils/question-format';
 import { useAuthStore } from '@/stores/auth';
 import LatexView from '@/components/LatexView.vue';
 import { Button } from '@/components/ui/button';
@@ -336,13 +337,7 @@ function toDisplayLatex(raw: string) {
     if (!data || typeof data !== 'object') {
       return text;
     }
-    const stem = String((data as any).stem || '').trim();
-    const options = Array.isArray((data as any).options) ? (data as any).options : [];
-    const subQuestions = Array.isArray((data as any).sub_questions) ? (data as any).sub_questions : [];
-    const lines = [stem || '题目'];
-    options.forEach((item: string, idx: number) => lines.push(`${String.fromCharCode(65 + idx)}. ${item}`));
-    subQuestions.forEach((item: string, idx: number) => lines.push(`(${idx + 1}) ${item}`));
-    return lines.join('\n');
+    return assembleLatexFromQuestionJson(data) || text;
   } catch {
     return text;
   }

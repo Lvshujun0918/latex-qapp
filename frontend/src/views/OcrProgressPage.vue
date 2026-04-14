@@ -74,6 +74,7 @@ import { AlertCircle, Check, Loader2, ScanSearch, Sparkles, Tags, FunctionSquare
 import { useTheme } from '@/composables/useTheme';
 import { generateLatexDraftByVisionStream } from '@/services/ai';
 import { saveVisionDraftToStorage } from '@/services/ai';
+import { assembleLatexFromQuestionJson } from '@/utils/question-format';
 import { loadImagePayload, saveImagePayload } from '@/services/image-transfer';
 import type { VisionStreamEvent, VisionLatexDraft } from '@/types/domain';
 import { Card, CardContent } from '@/components/ui/card';
@@ -263,26 +264,6 @@ function formatQuestionType(questionType?: string) {
   return questionType || '未知';
 }
 
-function assembleLatexFromQuestionJson(questionJson: any): string {
-  if (!questionJson || typeof questionJson !== 'object') {
-    return '';
-  }
-  const stem = String(questionJson.stem ?? '').trim();
-  if (!stem) {
-    return '';
-  }
-
-  const questionType = String(questionJson.question_type ?? '').trim();
-  if (questionType === '选择' && Array.isArray(questionJson.options) && questionJson.options.length > 0) {
-    const body = questionJson.options.map((opt: any) => `\\item ${String(opt ?? '').trim()}`).join('\n');
-    return `${stem}\n\\begin{choices}\n${body}\n\\end{choices}`;
-  }
-  if (questionType === '解答' && Array.isArray(questionJson.sub_questions) && questionJson.sub_questions.length > 0) {
-    const body = questionJson.sub_questions.map((sub: any) => `\\item ${String(sub ?? '').trim()}`).join('\n');
-    return `${stem}\n\\begin{enumerate}\n${body}\n\\end{enumerate}`;
-  }
-  return stem;
-}
 </script>
 
 <style scoped>
