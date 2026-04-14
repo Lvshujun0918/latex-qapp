@@ -42,7 +42,27 @@
         </div>
         <Switch :model-value="followSystemEnabled" @update:model-value="setFollowSystem" />
       </div>
+
+      <div class="theme-switch-item" :class="{ disabled: !androidReminderAvailable }">
+        <div class="theme-switch-text">
+          <p>每日复习提醒</p>
+          <span>
+            {{ androidReminderAvailable ? '安卓原生通知，每天定时提醒复习' : '仅安卓原生 App 可用' }}
+          </span>
+        </div>
+        <Switch :model-value="reminderEnabled" :disabled="!androidReminderAvailable || reminderLoading" @update:model-value="toggleReminder" />
+      </div>
+
+      <div class="theme-switch-item" :class="{ disabled: !reminderEnabled || !androidReminderAvailable }">
+        <div class="theme-switch-text">
+          <p>提醒时间</p>
+          <span>默认每天 20:00，可自定义</span>
+        </div>
+        <input class="time-input" type="time" :disabled="!reminderEnabled || !androidReminderAvailable || reminderLoading" :value="reminderTime" @change="onReminderTimeChange" />
+      </div>
     </div>
+
+    <p v-if="reminderMessage" class="theme-tip">{{ reminderMessage }}</p>
 
     <button class="about-entry app-interactive-surface" type="button" @click="goAbout">
       <div class="about-entry-text">
@@ -65,12 +85,22 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { ChevronRight } from 'lucide-vue-next';
 import { useAuthStore } from '@/stores/auth';
 import { useRecordStore } from '@/stores/record';
 import { useTheme } from '@/composables/useTheme';
+import {
+  cancelDailyReminder,
+  ensureReminderPermissions,
+  getReminderEnabled,
+  getReminderTime,
+  isNativeAndroid,
+  scheduleDailyReminder,
+  setReminderEnabled,
+  setReminderTime,
+} from '@/services/reminder';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
@@ -79,6 +109,12 @@ const authStore = useAuthStore();
 const recordStore = useRecordStore();
 const router = useRouter();
 const { themeMode, resolvedTheme, setTheme } = useTheme();
+const reminderEnabled = ref(false);
+const reminderTime = ref('20:00');
+const reminderLoading = ref(false);
+const reminderMessage = ref('');
+
+const androidReminderAvailable = computed(() => isNativeAndroid());
 
 const displayInitial = computed(() => {
   const source = authStore.displayName || authStore.username || '用户';
@@ -115,7 +151,59 @@ function setFollowSystem(checked: boolean) {
 
 onMounted(() => {
   recordStore.reload();
+  reminderEnabled.value = getReminderEnabled();
+  reminderTime.value = getReminderTime();
 });
+
+async function toggleReminder(checked: boolean) {
+  if (!androidReminderAvailable.value || reminderLoading.value) {
+    return;
+  }
+
+  reminderLoading.value = true;
+  try {
+    reminderMessage.value = '';
+
+    if (checked) {
+      await ensureReminderPermissions();
+      await scheduleDailyReminder(reminderTime.value);
+      reminderEnabled.value = true;
+      setReminderEnabled(true);
+      reminderMessage.value = `已开启每日提醒：${reminderTime.value}`;
+      return;
+    }
+
+    await cancelDailyReminder();
+    reminderEnabled.value = false;
+    setReminderEnabled(false);
+    reminderMessage.value = '已关闭每日提醒';
+  } catch (error: any) {
+    reminderMessage.value = error?.message || '提醒设置失败，请重试';
+    reminderEnabled.value = getReminderEnabled();
+  } finally {
+    reminderLoading.value = false;
+  }
+}
+
+async function onReminderTimeChange(event: Event) {
+  const next = (event.target as HTMLInputElement)?.value || '20:00';
+  reminderTime.value = next;
+  setReminderTime(next);
+
+  if (!androidReminderAvailable.value || !reminderEnabled.value || reminderLoading.value) {
+    return;
+  }
+
+  reminderLoading.value = true;
+  try {
+    await scheduleDailyReminder(next);
+    reminderMessage.value = `提醒时间已更新为 ${next}`;
+  } catch (error: any) {
+    reminderMessage.value = error?.message || '更新时间失败，请重试';
+  } finally {
+    reminderLoading.value = false;
+  }
+}
 
 function goAbout() {
   router.push('/profile/about');
@@ -267,6 +355,15 @@ function logout() {
   color: #64748b;
 }
 
+.time-input {
+  border: 1px solid rgba(148, 163, 184, 0.32);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.85);
+  color: #0f172a;
+  padding: 6px 10px;
+  font-size: 14px;
+}
+
 .about-entry {
   width: 100%;
   display: flex;
@@ -356,6 +453,12 @@ function logout() {
 
 .is-dark .theme-switch-text p {
   color: #f8fafc;
+}
+
+.is-dark .time-input {
+  background: rgba(15, 23, 42, 0.72);
+  border-color: rgba(148, 163, 184, 0.35);
+  color: #e2e8f0;
 }
 
 .is-dark .theme-switch-text span {
