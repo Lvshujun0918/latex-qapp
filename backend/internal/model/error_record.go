@@ -9,12 +9,10 @@ type ErrorRecord struct {
 	QuestionType         string     `gorm:"size:32" json:"question_type"`
 	Title                string     `gorm:"size:255" json:"title"`
 	LatexSource          string     `gorm:"type:text;not null" json:"latex_source"`
-	AnswerMode           string     `gorm:"size:16;default:ai;not null" json:"answer_mode"`
+	SolutionMode         string     `gorm:"size:16;default:ai;not null" json:"solution_mode"`
 	AnswerText           string     `gorm:"type:text" json:"answer_text"`
-	AnswerImageDataURL   string     `gorm:"type:text" json:"answer_image_data_url"`
-	AnalysisMode         string     `gorm:"size:16;default:ai;not null" json:"analysis_mode"`
 	AnalysisText         string     `gorm:"type:text" json:"analysis_text"`
-	AnalysisImageDataURL string     `gorm:"type:text" json:"analysis_image_data_url"`
+	SolutionImageDataURL string     `gorm:"type:text" json:"solution_image_data_url"`
 	QuestionTagsJSON     string     `gorm:"type:text" json:"question_tags_json"`
 	LatexVersion         int        `gorm:"default:1;not null" json:"latex_version"`
 	LatexRenderStatus    string     `gorm:"size:16;default:pending;not null" json:"latex_render_status"`

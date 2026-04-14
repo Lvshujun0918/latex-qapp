@@ -19,12 +19,10 @@ type CreateRecordInput struct {
 	QuestionType         string     `json:"question_type"`
 	Title                string     `json:"title"`
 	LatexSource          JSONText   `json:"latex_source"`
-	AnswerMode           string     `json:"answer_mode"`
+	SolutionMode         string     `json:"solution_mode"`
 	AnswerText           string     `json:"answer_text"`
-	AnswerImageDataURL   string     `json:"answer_image_data_url"`
-	AnalysisMode         string     `json:"analysis_mode"`
 	AnalysisText         string     `json:"analysis_text"`
-	AnalysisImageDataURL string     `json:"analysis_image_data_url"`
+	SolutionImageDataURL string     `json:"solution_image_data_url"`
 	LatexAnswer          string     `json:"latex_answer"`
 	QuestionTags         []string   `json:"question_tags"`
 	MistakeReason        string     `json:"mistake_reason"`
@@ -116,12 +114,10 @@ func (s *RecordService) Create(userID uint, input CreateRecordInput) (*model.Err
 		QuestionType:         input.QuestionType,
 		Title:                input.Title,
 		LatexSource:          string(input.LatexSource),
-		AnswerMode:           normalizeSourceMode(input.AnswerMode),
+		SolutionMode:         normalizeSourceMode(input.SolutionMode),
 		AnswerText:           input.AnswerText,
-		AnswerImageDataURL:   input.AnswerImageDataURL,
-		AnalysisMode:         normalizeSourceMode(input.AnalysisMode),
 		AnalysisText:         input.AnalysisText,
-		AnalysisImageDataURL: input.AnalysisImageDataURL,
+		SolutionImageDataURL: input.SolutionImageDataURL,
 		LatexAnswer:          input.LatexAnswer,
 		QuestionTagsJSON:     string(tagsBytes),
 		LatexVersion:         1,
@@ -170,12 +166,10 @@ func (s *RecordService) Update(userID uint, id uint, input CreateRecordInput) (*
 	record.QuestionType = input.QuestionType
 	record.Title = input.Title
 	record.LatexSource = string(input.LatexSource)
-	record.AnswerMode = normalizeSourceMode(input.AnswerMode)
+	record.SolutionMode = normalizeSourceMode(input.SolutionMode)
 	record.AnswerText = input.AnswerText
-	record.AnswerImageDataURL = input.AnswerImageDataURL
-	record.AnalysisMode = normalizeSourceMode(input.AnalysisMode)
 	record.AnalysisText = input.AnalysisText
-	record.AnalysisImageDataURL = input.AnalysisImageDataURL
+	record.SolutionImageDataURL = input.SolutionImageDataURL
 	record.LatexAnswer = input.LatexAnswer
 	record.QuestionTagsJSON = string(tagsBytes)
 	record.MistakeReason = input.MistakeReason
