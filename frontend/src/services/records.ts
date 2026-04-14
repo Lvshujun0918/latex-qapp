@@ -6,12 +6,10 @@ export interface SaveRecordPayload {
   question_type?: string;
   title?: string;
   latex_source: string;
-  answer_mode?: 'ai' | 'image';
+  solution_mode?: 'ai' | 'image';
   answer_text?: string;
-  answer_image_data_url?: string;
-  analysis_mode?: 'ai' | 'image';
   analysis_text?: string;
-  analysis_image_data_url?: string;
+  solution_image_data_url?: string;
   latex_answer?: string;
   question_tags?: string[];
   mistake_reason?: string;
@@ -29,12 +27,10 @@ export function toSavePayload(record: ErrorRecord): SaveRecordPayload {
     question_type: record.questionType,
     title: record.title,
     latex_source: record.latexSource,
-    answer_mode: record.answerMode,
+    solution_mode: record.solutionMode,
     answer_text: record.answerText,
-    answer_image_data_url: record.answerImageDataUrl,
-    analysis_mode: record.analysisMode,
     analysis_text: record.analysisText,
-    analysis_image_data_url: record.analysisImageDataUrl,
+    solution_image_data_url: record.solutionImageDataUrl,
     latex_answer: record.latexAnswer,
     question_tags: record.questionTags,
     mistake_reason: record.mistakeReason,
@@ -86,12 +82,10 @@ function normalizeRecord(raw: any): ErrorRecord {
     questionType: raw?.questionType ?? raw?.question_type,
     title: raw?.title,
     latexSource: String(raw?.latexSource ?? raw?.latex_source ?? ''),
-    answerMode: raw?.answerMode ?? raw?.answer_mode,
+    solutionMode: raw?.solutionMode ?? raw?.solution_mode,
     answerText: raw?.answerText ?? raw?.answer_text,
-    answerImageDataUrl: raw?.answerImageDataUrl ?? raw?.answer_image_data_url,
-    analysisMode: raw?.analysisMode ?? raw?.analysis_mode,
     analysisText: raw?.analysisText ?? raw?.analysis_text,
-    analysisImageDataUrl: raw?.analysisImageDataUrl ?? raw?.analysis_image_data_url,
+    solutionImageDataUrl: raw?.solutionImageDataUrl ?? raw?.solution_image_data_url,
     latexAnswer: raw?.latexAnswer ?? raw?.latex_answer,
     questionTags: raw?.questionTags ?? raw?.question_tags,
     latexVersion: Number(raw?.latexVersion ?? raw?.latex_version ?? 1),
