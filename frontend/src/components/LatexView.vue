@@ -54,6 +54,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import katex from 'katex';
+import { cleanChoiceText, cleanPartText, cleanQuestionText, normalizeQuestionTypeLabel } from '@/utils/question-format';
 
 type ParsedQuestion = {
   stem: string;
@@ -81,17 +82,17 @@ function parseQuestionJSON(input: string) {
       return null;
     }
 
-    const stem = String(parsed.stem ?? '').trim();
+    const stem = cleanQuestionText(String(parsed.stem ?? ''));
     if (!stem) {
       return null;
     }
 
     return {
-      questionType: String(parsed.question_type ?? '').trim(),
+      questionType: normalizeQuestionTypeLabel(parsed.question_type),
       stem,
-      options: Array.isArray(parsed.options) ? parsed.options.map((it: any) => String(it ?? '').trim()).filter(Boolean) : [],
+      options: Array.isArray(parsed.options) ? parsed.options.map((it: any) => cleanChoiceText(String(it ?? ''))).filter(Boolean) : [],
       subQuestions: Array.isArray(parsed.sub_questions)
-        ? parsed.sub_questions.map((it: any) => String(it ?? '').trim()).filter(Boolean)
+        ? parsed.sub_questions.map((it: any) => cleanPartText(String(it ?? ''))).filter(Boolean)
         : [],
     };
   } catch {
@@ -117,7 +118,7 @@ function parseExamQuestions(input: string): ParsedQuestion[] {
     const { contentWithoutEnum, parts } = extractEnumerate(contentWithoutChoices);
 
     list.push({
-      stem: cleanupText(contentWithoutEnum),
+      stem: cleanQuestionText(cleanupText(contentWithoutEnum)),
       choices,
       parts,
     });
@@ -145,7 +146,7 @@ function extractChoices(body: string) {
   const choices: string[] = [];
   let item: RegExpExecArray | null;
   while ((item = itemRe.exec(raw)) !== null) {
-    choices.push(cleanupText(item[1] || ''));
+    choices.push(cleanChoiceText(cleanupText(item[1] || '')));
   }
 
   return {
@@ -171,7 +172,7 @@ function extractEnumerate(body: string) {
   const parts: string[] = [];
   let item: RegExpExecArray | null;
   while ((item = itemRe.exec(raw)) !== null) {
-    parts.push(cleanupText(item[1] || ''));
+    parts.push(cleanPartText(cleanupText(item[1] || '')));
   }
 
   return {
