@@ -52,6 +52,14 @@
       <ChevronRight class="h-4 w-4 about-entry-arrow" />
     </button>
 
+    <button class="about-entry app-interactive-surface" type="button" @click="goBackendStatus">
+      <div class="about-entry-text">
+        <p>后端状态</p>
+        <span>查看后端时延、服务状态和版本</span>
+      </div>
+      <ChevronRight class="h-4 w-4 about-entry-arrow" />
+    </button>
+
     <Button variant="destructive" class="logout-btn" @click="logout">退出登录</Button>
   </section>
 </template>
@@ -111,6 +119,10 @@ onMounted(() => {
 
 function goAbout() {
   router.push('/profile/about');
+}
+
+function goBackendStatus() {
+  router.push('/profile/backend');
 }
 
 function logout() {

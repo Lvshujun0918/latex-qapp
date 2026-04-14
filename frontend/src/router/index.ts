@@ -68,6 +68,10 @@ const routes: Array<RouteRecordRaw> = [
     path: '/profile/about',
     component: () => import('@/views/AboutPage.vue'),
   },
+  {
+    path: '/profile/backend',
+    component: () => import('@/views/ProfileBackendPage.vue'),
+  },
 ];
 
 const router = createRouter({
