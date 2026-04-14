@@ -6,6 +6,11 @@ const REMINDER_CHANNEL_ID = 'daily-review-reminders';
 const REMINDER_ENABLED_KEY = 'daily-review-reminder-enabled';
 const REMINDER_TIME_KEY = 'daily-review-reminder-time';
 
+export interface ReminderPayload {
+  focusTag?: string;
+  dueCount?: number;
+}
+
 export function isNativeAndroid() {
   return Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'android';
 }
@@ -47,7 +52,7 @@ export async function ensureReminderPermissions() {
   }
 }
 
-export async function scheduleDailyReminder(time: string) {
+export async function scheduleDailyReminder(time: string, payload?: ReminderPayload) {
   const [hourText, minuteText] = time.split(':');
   const hour = Number(hourText);
   const minute = Number(minuteText);
@@ -69,12 +74,18 @@ export async function scheduleDailyReminder(time: string) {
     notifications: [{ id: REMINDER_NOTIFICATION_ID }],
   });
 
+  const focusTag = String(payload?.focusTag || '').trim();
+  const dueCount = Math.max(0, Number(payload?.dueCount || 0));
+  const body = focusTag
+    ? `今天建议优先复习「${focusTag}」标签${dueCount > 0 ? `（到期 ${dueCount} 题）` : ''}。`
+    : '今天的错题复习时间到了，和孩子一起开始吧。';
+
   await LocalNotifications.schedule({
     notifications: [
       {
         id: REMINDER_NOTIFICATION_ID,
         title: '复习提醒',
-        body: '今天的错题复习时间到了，和孩子一起开始吧。',
+        body,
         schedule: {
           on: {
             hour,
