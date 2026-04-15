@@ -24,6 +24,12 @@ export interface TagGraphData {
   edges: TagRelation[];
 }
 
+export interface TagGraphOptions {
+  maxNodes?: number;
+  maxEdges?: number;
+  allowedTags?: Iterable<string>;
+}
+
 export interface RecordWithTagPriority {
   id: number;
   primaryTag: string;
@@ -103,15 +109,17 @@ export function buildTagSummaries(records: ErrorRecord[]): TagSummary[] {
     .sort((a, b) => b.priorityScore - a.priorityScore || b.recordCount - a.recordCount || a.tag.localeCompare(b.tag));
 }
 
-export function buildTagRelations(records: ErrorRecord[], maxEdges = 24): TagRelation[] {
+export function buildTagRelations(records: ErrorRecord[], maxEdges = 24, allowedTags?: Iterable<string>): TagRelation[] {
   const pairMap = new Map<string, number>();
+  const allowed = allowedTags ? new Set(Array.from(allowedTags, (tag) => String(tag || '').trim()).filter((tag) => tag.length > 0)) : null;
 
   records.forEach((record) => {
     const tags = normalizeTagList(record.questionTags);
-    for (let i = 0; i < tags.length; i += 1) {
-      for (let j = i + 1; j < tags.length; j += 1) {
-        const source = tags[i];
-        const target = tags[j];
+    const filteredTags = allowed ? tags.filter((tag) => allowed.has(tag)) : tags;
+    for (let i = 0; i < filteredTags.length; i += 1) {
+      for (let j = i + 1; j < filteredTags.length; j += 1) {
+        const source = filteredTags[i];
+        const target = filteredTags[j];
         const key = source < target ? `${source}__${target}` : `${target}__${source}`;
         pairMap.set(key, (pairMap.get(key) || 0) + 1);
       }
@@ -127,10 +135,14 @@ export function buildTagRelations(records: ErrorRecord[], maxEdges = 24): TagRel
     .slice(0, maxEdges);
 }
 
-export function buildTagGraphData(records: ErrorRecord[]): TagGraphData {
+export function buildTagGraphData(records: ErrorRecord[], options: TagGraphOptions = {}): TagGraphData {
+  const maxNodes = options.maxNodes ?? 10;
+  const maxEdges = options.maxEdges ?? 24;
+  const allowedTags = options.allowedTags;
+
   return {
-    nodes: buildTagSummaries(records).slice(0, 10),
-    edges: buildTagRelations(records, 24),
+    nodes: buildTagSummaries(records).slice(0, maxNodes),
+    edges: buildTagRelations(records, maxEdges, allowedTags),
   };
 }
 
