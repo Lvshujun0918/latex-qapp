@@ -67,10 +67,13 @@
             <div class="picker-main">
               <div class="title-row">
                 <p class="review-title">{{ record.title || '未命名题目' }}</p>
-                <span class="result-badge" :class="resultClass(record.lastReviewResult)">{{ resultText(record.lastReviewResult) }}</span>
+                <div class="title-badges">
+                  <span class="tag-focus">{{ record.primaryTag }}</span>
+                  <span class="result-badge" :class="resultClass(record.lastReviewResult)">{{ resultText(record.lastReviewResult) }}</span>
+                </div>
               </div>
               <p class="review-meta">
-                {{ formatSubject(record.subject) }} · 第 {{ record.reviewCount + 1 }} 次 · 目标 {{ record.nextInterval }} 天 · {{
+                标签 {{ record.tagPreview.join(' / ') }} · {{ formatSubject(record.subject) }} · 第 {{ record.reviewCount + 1 }} 次 · 目标 {{ record.nextInterval }} 天 · {{
                   formatQuestionType(record.questionType)
                 }}
               </p>
@@ -111,6 +114,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { buildTagSummaries, scoreRecordByTags, summarizeTags } from '@/utils/tag-analytics';
 
 interface PdfJobRow {
   jobId: string;
@@ -133,8 +137,14 @@ const selectedMap = ref(new Set<number>());
 const prefillHandled = ref(false);
 const EBBINGHAUS_INTERVALS = [1, 2, 4, 7, 15, 30];
 
+const tagPriorityMap = computed(() => {
+  const summaries = buildTagSummaries(records.value);
+  return new Map(summaries.map((item) => [item.tag, item.priorityScore]));
+});
+
 const scheduleRows = computed(() => {
   const now = Date.now();
+  const priorityMap = tagPriorityMap.value;
   return records.value
     .map((record) => {
       const reviewCount = Math.max(0, Number(record.reviewCount || 0));
@@ -160,14 +170,19 @@ const scheduleRows = computed(() => {
         ? Math.max(0, Math.min(100, Math.round((1 - Math.max(0, nextReviewTime - now) / (nextInterval * 86400000)) * 100)))
         : Math.max(0, Math.min(100, Math.round((elapsedDays / nextInterval) * 100)));
 
+      const tagScore = scoreRecordByTags(record, priorityMap);
+
       return {
         ...record,
         nextInterval,
         overdueDays,
         progressPercent,
+        primaryTag: tagScore.primaryTag,
+        tagPriorityScore: tagScore.score,
+        tagPreview: summarizeTags(record.questionTags, 3),
       };
     })
-    .sort((a, b) => b.overdueDays - a.overdueDays);
+    .sort((a, b) => b.overdueDays - a.overdueDays || b.tagPriorityScore - a.tagPriorityScore);
 });
 
 const filteredRecords = computed(() => {
@@ -370,6 +385,8 @@ function resultClass(result?: string) {
 .picker-item { border: 1px solid rgba(148, 163, 184, 0.22); border-radius: 10px; padding: 8px 10px; display: flex; align-items: center; gap: 10px; }
 .picker-main { width: 100%; display: grid; gap: 6px; }
 .title-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.title-badges { display: inline-flex; align-items: center; gap: 6px; }
+.tag-focus { font-size: 10px; border-radius: 999px; padding: 2px 8px; color: #1d4ed8; background: rgba(37, 99, 235, 0.14); border: 1px solid rgba(37, 99, 235, 0.28); white-space: nowrap; }
 .review-title { margin: 0; font-size: 14px; color: #0f172a; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .review-meta { margin: 0; font-size: 12px; color: #64748b; }
 .progress-row { display: flex; align-items: center; gap: 8px; }
@@ -390,6 +407,7 @@ function resultClass(result?: string) {
 .is-dark .progress-track { background: rgba(148, 163, 184, 0.28); }
 .is-dark .urgency-text { color: #fbbf24; }
 .is-dark .result-badge.none { color: #cbd5e1; }
+.is-dark .tag-focus { color: #dbeafe; background: rgba(37, 99, 235, 0.28); border-color: rgba(96, 165, 250, 0.44); }
 @media (max-width: 640px) {
   .hero-content { align-items: flex-start; flex-direction: column; }
 }
