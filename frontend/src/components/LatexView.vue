@@ -14,7 +14,10 @@
         </ol>
 
         <ol v-if="jsonQuestion.subQuestions.length" class="question-parts">
-          <li v-for="(part, pIdx) in jsonQuestion.subQuestions" :key="`json-p-${pIdx}`" v-html="renderRichText(part)" />
+          <li v-for="(part, pIdx) in jsonQuestion.subQuestions" :key="`json-p-${pIdx}`">
+            <span class="part-label">{{ part.label }}</span>
+            <span class="part-content" v-html="renderRichText(part.content)" />
+          </li>
         </ol>
       </article>
     </template>
@@ -40,7 +43,10 @@
         </ol>
 
         <ol v-if="q.parts.length" class="question-parts">
-          <li v-for="(part, pIdx) in q.parts" :key="`${idx}-p-${pIdx}`" v-html="renderRichText(part)" />
+          <li v-for="(part, pIdx) in q.parts" :key="`${idx}-p-${pIdx}`">
+            <span class="part-label">{{ part.label }}</span>
+            <span class="part-content" v-html="renderRichText(part.content)" />
+          </li>
         </ol>
       </article>
     </template>
@@ -59,14 +65,14 @@ import { cleanChoiceText, cleanPartText, cleanQuestionText, normalizeQuestionTyp
 type ParsedQuestion = {
   stem: string;
   choices: string[];
-  parts: string[];
+  parts: Array<{ label: string; content: string }>;
 };
 
 const props = defineProps<{
   source?: string;
 }>();
 
-const normalizedSource = computed(() => (props.source || '').trim());
+const normalizedSource = computed(() => normalizeLatexSource(props.source || ''));
 
 const jsonQuestion = computed(() => parseQuestionJSON(normalizedSource.value));
 const questions = computed(() => parseExamQuestions(normalizedSource.value));
@@ -92,7 +98,10 @@ function parseQuestionJSON(input: string) {
       stem,
       options: Array.isArray(parsed.options) ? parsed.options.map((it: any) => cleanChoiceText(String(it ?? ''))).filter(Boolean) : [],
       subQuestions: Array.isArray(parsed.sub_questions)
-        ? parsed.sub_questions.map((it: any) => cleanPartText(String(it ?? ''))).filter(Boolean)
+        ? parsed.sub_questions
+          .map((it: any) => cleanPartText(String(it ?? '')))
+          .filter(Boolean)
+          .map((content: string, idx: number) => ({ label: partLabel(idx), content }))
         : [],
     };
   } catch {
@@ -124,7 +133,35 @@ function parseExamQuestions(input: string): ParsedQuestion[] {
     });
   }
 
+  if (!list.length) {
+    const single = parseSingleStructuredQuestion(input);
+    if (single) {
+      list.push(single);
+    }
+  }
+
   return list;
+}
+
+function parseSingleStructuredQuestion(input: string): ParsedQuestion | null {
+  const body = cleanupText(input);
+  if (!/\\begin\{choices\}|\\begin\{enumerate\}/.test(body)) {
+    return null;
+  }
+
+  const { contentWithoutChoices, choices } = extractChoices(body);
+  const { contentWithoutEnum, parts } = extractEnumerate(contentWithoutChoices);
+  const stem = cleanQuestionText(cleanupText(contentWithoutEnum));
+
+  if (!stem) {
+    return null;
+  }
+
+  return {
+    stem,
+    choices,
+    parts,
+  };
 }
 
 function extractChoices(body: string) {
@@ -139,14 +176,13 @@ function extractChoices(body: string) {
     };
   }
 
-  const options = (m[1] || '').trim();
   const raw = (m[2] || '').trim();
-  const itemRe = /\\item\s+([\s\S]*?)(?=(?:\\item\s+)|$)/g;
+  const itemRe = /\\item(?:\[([^\]]+)\])?\s*([\s\S]*?)(?=(?:\\item(?:\[[^\]]+\])?\s*)|$)/g;
 
   const choices: string[] = [];
   let item: RegExpExecArray | null;
   while ((item = itemRe.exec(raw)) !== null) {
-    choices.push(cleanChoiceText(cleanupText(item[1] || '')));
+    choices.push(cleanChoiceText(cleanupText(item[2] || '')));
   }
 
   return {
@@ -162,17 +198,25 @@ function extractEnumerate(body: string) {
   if (!m) {
     return {
       contentWithoutEnum: body,
-      parts: [] as string[],
+      parts: [] as Array<{ label: string; content: string }>,
     };
   }
 
   const raw = (m[1] || '').trim();
-  const itemRe = /\\item\s+([\s\S]*?)(?=(?:\\item\s+)|$)/g;
+  const itemRe = /\\item(?:\[([^\]]+)\])?\s*([\s\S]*?)(?=(?:\\item(?:\[[^\]]+\])?\s*)|$)/g;
 
-  const parts: string[] = [];
+  const parts: Array<{ label: string; content: string }> = [];
   let item: RegExpExecArray | null;
+  let seq = 0;
   while ((item = itemRe.exec(raw)) !== null) {
-    parts.push(cleanPartText(cleanupText(item[1] || '')));
+    const customLabel = cleanupText(item[1] || '');
+    const content = cleanPartText(cleanupText(item[2] || ''));
+    if (!content) {
+      continue;
+    }
+    const label = customLabel ? normalizePartLabel(customLabel) : partLabel(seq);
+    parts.push({ label, content });
+    seq += 1;
   }
 
   return {
@@ -186,6 +230,32 @@ function cleanupText(text: string) {
     .replace(/\r/g, '')
     .replace(/^\s+|\s+$/g, '')
     .replace(/\n{3,}/g, '\n\n');
+}
+
+function normalizeLatexSource(raw: string) {
+  const value = String(raw || '');
+  if (!value.trim()) {
+    return '';
+  }
+
+  const decoded = decodeBasicHtmlEntities(value)
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/p>\s*<p>/gi, '\n')
+    .replace(/<\/?p>/gi, '')
+    .replace(/^```(?:latex)?\s*/i, '')
+    .replace(/\s*```$/i, '')
+    // Handle doubly-escaped question structure commands from upstream payloads.
+    .replace(/\\\\(begin|end|item)\b/g, '\\$1');
+
+  return cleanupText(decoded);
+}
+
+function decodeBasicHtmlEntities(input: string) {
+  return input
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&gt;/gi, '>')
+    .replace(/&lt;/gi, '<')
+    .replace(/&amp;/gi, '&');
 }
 
 function renderRichText(input: string, displayAsBlock = false) {
@@ -262,18 +332,25 @@ function choiceLabel(index: number) {
   return String.fromCharCode(65 + index);
 }
 
-function choiceGridStyle(columns: number) {
-  const col = Math.max(1, Math.min(columns || 1, 6));
-  return {
-    gridTemplateColumns: `repeat(${col}, minmax(0, 1fr))`,
-  };
+function partLabel(index: number) {
+  return `(${index + 1})`;
+}
+
+function normalizePartLabel(raw: string) {
+  const value = String(raw || '').trim();
+  if (!value) {
+    return '(1)';
+  }
+  if (/^[（(].*[)）]$/.test(value)) {
+    return value.replace('（', '(').replace('）', ')');
+  }
+  return `(${value})`;
 }
 </script>
 
 <style scoped>
 .latex-view {
   overflow-x: auto;
-  padding: 8px 2px;
   display: grid;
   gap: 12px;
 }
@@ -329,9 +406,27 @@ function choiceGridStyle(columns: number) {
 
 .question-parts {
   margin: 10px 0 0;
-  padding-left: 20px;
+  padding: 0;
+  list-style: none;
   display: grid;
   gap: 8px;
+}
+
+.question-parts li {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.part-label {
+  min-width: 36px;
+  font-weight: 600;
+  color: #475569;
+}
+
+.part-content {
+  flex: 1;
+  min-width: 0;
 }
 
 .latex-raw {
