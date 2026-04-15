@@ -1,94 +1,70 @@
 <template>
   <section class="app-page app-inner-page page-wrap pt-8" :class="{ 'is-dark': resolvedTheme === 'dark' }">
     <header class="app-page-header page-header">
-      <Button variant="outline" size="icon-sm" class="app-header-back mr-4" @click="goBack" aria-label="返回上一级"><</Button>
-      <h1>PDF 结果</h1>
-      <p>任务完成，可直接下载文件。</p>
+      <Button variant="outline" size="icon-sm" class="app-header-back mr-4" @click="goBack" aria-label="返回上一级">
+        < </Button>
+          <h1>PDF 结果</h1>
+          <p>任务完成，可直接下载文件。</p>
     </header>
 
     <Card class="app-page-shell hero-shell">
-      <CardHeader>
+      <CardHeader class="hero">
         <div class="hero-top">
           <CardTitle>任务 {{ route.params.jobId }}</CardTitle>
           <span class="status-pill" :class="`status-${jobStatus}`">{{ statusLabel }}</span>
         </div>
+        <div class="checkmark-circle" aria-hidden="true">
+          <svg viewBox="0 0 52 52" class="checkmark-svg">
+            <circle class="checkmark-ring" cx="26" cy="26" r="24" fill="none" />
+            <path class="checkmark-path" fill="none" d="M14 27l8 8 16-16" />
+          </svg>
+        </div>
       </CardHeader>
       <CardContent class="hero-content">
-        <div v-if="jobStatus === 'done' || pdfUrl" class="success-wrap">
-          <div class="checkmark-circle" aria-hidden="true">
-            <svg viewBox="0 0 52 52" class="checkmark-svg">
-              <circle class="checkmark-ring" cx="26" cy="26" r="24" fill="none" />
-              <path class="checkmark-path" fill="none" d="M14 27l8 8 16-16" />
-            </svg>
-          </div>
-          <p class="success-title">PDF 已生成完成</p>
-          <p class="success-subtitle">你现在可以直接下载并查看文件。</p>
-        </div>
-
         <div class="action-row">
           <template v-if="pdfUrl">
-            <Button
-              v-if="isNativePlatform"
-              variant="outline"
-              :disabled="openingNative"
-              @click="openPdfNative"
-            >
+            <Button v-if="isNativePlatform" variant="outline" :disabled="openingNative" @click="openPdfNative">
               {{ openingNative ? '打开中...' : '打开 PDF' }}
             </Button>
-
-            <a
-              v-if="!isNativePlatform"
-              class="download-link"
-              :href="pdfUrl"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
+            <a v-if="!isNativePlatform" class="download-link" :href="pdfUrl" target="_blank" rel="noopener noreferrer">
               下载 PDF 文件
             </a>
           </template>
-
           <Button v-else variant="outline" :disabled="loading" @click="fetchJob">刷新状态</Button>
         </div>
-
         <p v-if="saveMessage" class="save-message">{{ saveMessage }}</p>
-
         <p v-if="errorMessage" class="error">{{ errorMessage }}</p>
       </CardContent>
     </Card>
-    <Card class="app-page-shell tips-shell">
-      <CardHeader>
-        <CardTitle>生成信息</CardTitle>
-      </CardHeader>
-      <CardContent class="tips-content">
-        <div v-if="questionList.length" class="question-list-wrap">
-          <h4 class="question-list-title">本次生成题目</h4>
-          <ul class="question-list">
-            <li v-for="question in questionList" :key="`${question.id}-${question.index}`" class="question-item">
-              <div class="question-main">
-                <span class="question-index">{{ question.index }}.</span>
-                <strong class="question-title">{{ question.title }}</strong>
-              </div>
-              <p class="question-meta">{{ question.subject || '未分类' }} · {{ question.question_type || '未标注题型' }}</p>
-              <div class="question-block">
-                <p class="question-block-title">题目</p>
-                <LatexView :source="toDisplayLatex(question.latex_source)" class="latex-embed" />
-              </div>
-              <div class="question-block">
-                <p class="question-block-title">参考答案</p>
-                <LatexView :source="question.latex_answer || '暂无答案'" class="latex-embed" />
-              </div>
-              <div class="review-action-row">
-                <span class="review-tag" :class="`is-${question.child_result || 'none'}`">{{ childResultText(question.child_result) }}</span>
-                <Button size="sm" :disabled="savingReview" @click="markChildResult(question.record_id || question.id, true)">孩子做对</Button>
-                <Button variant="destructive" size="sm" :disabled="savingReview" @click="markChildResult(question.record_id || question.id, false)">孩子做错</Button>
-              </div>
-            </li>
-          </ul>
-        </div>
+    <div v-if="questionList.length" class="question-list-wrap">
+      <h4 class="question-list-title">本次生成题目</h4>
+      <ul class="question-list">
+        <li v-for="question in questionList" :key="`${question.id}-${question.index}`" class="question-item">
+          <div class="question-main">
+            <span class="question-index">{{ question.index }}.</span>
+            <strong class="question-title">{{ question.title }}</strong>
+          </div>
+          <p class="question-meta">{{ formatSubject(question.subject) }} · {{ formatQuestionType(question.question_type) }}</p>
+          <LatexView :source="question.latex_source || '暂无题目'" class="latex-embed" />
+          <div class="question-block">
+            <p class="question-block-title">参考答案</p>
+            <LatexView :source="question.latex_answer || '暂无答案'" class="latex-embed" />
+          </div>
+          <div class="review-action-row">
+            <span class="review-tag" :class="`is-${question.child_result || 'none'}`">{{
+              childResultText(question.child_result) }}</span>
+            <div class="btn-grp">
+              <Button size="sm" :disabled="savingReview"
+                @click="markChildResult(question.record_id || question.id, true)">孩子做对</Button>
+              <Button variant="destructive" size="sm" :disabled="savingReview"
+                @click="markChildResult(question.record_id || question.id, false)">孩子做错</Button>
+            </div>
+          </div>
+        </li>
+      </ul>
+    </div>
 
-        <p v-else class="question-empty">题目详情暂不可见，请稍后刷新。</p>
-      </CardContent>
-    </Card>
+    <p v-else class="question-empty">题目详情暂不可见，请稍后刷新。</p>
   </section>
 </template>
 
@@ -103,7 +79,7 @@ import { useTheme } from '@/composables/useTheme';
 import { upsertPdfExportHistory } from '@/services/pdf-history';
 import { getPdfJob, updatePdfQuestionReview } from '@/services/pdf';
 import { openPdfFromLocalUri, saveRemotePdfToDevice } from '@/services/pdf-native';
-import { assembleLatexFromQuestionJson } from '@/utils/question-format';
+import { normalizeQuestionTypeLabel, normalizeSubjectLabel } from '@/utils/question-format';
 import { useAuthStore } from '@/stores/auth';
 import LatexView from '@/components/LatexView.vue';
 import { Button } from '@/components/ui/button';
@@ -197,16 +173,16 @@ async function fetchJob() {
     selectedCount.value = Number(payload.selected_count ?? selectedCount.value ?? 0);
     questionList.value = Array.isArray(payload.questions)
       ? payload.questions.map((item: any, idx: number) => ({
-          id: Number(item?.id ?? 0),
-          record_id: Number(item?.record_id ?? item?.id ?? 0),
-          index: Number(item?.index ?? idx + 1),
-          title: String(item?.title ?? '').trim() || `第 ${idx + 1} 题`,
-          subject: String(item?.subject ?? '').trim(),
-          question_type: String(item?.question_type ?? '').trim(),
-          latex_source: String(item?.latex_source ?? '').trim(),
-          latex_answer: String(item?.latex_answer ?? '').trim(),
-          child_result: String(item?.child_result ?? 'none').trim() || 'none',
-        }))
+        id: Number(item?.id ?? 0),
+        record_id: Number(item?.record_id ?? item?.id ?? 0),
+        index: Number(item?.index ?? idx + 1),
+        title: String(item?.title ?? '').trim() || `第 ${idx + 1} 题`,
+        subject: String(item?.subject ?? '').trim(),
+        question_type: String(item?.question_type ?? '').trim(),
+        latex_source: String(item?.latex_source ?? '').trim(),
+        latex_answer: String(item?.latex_answer ?? '').trim(),
+        child_result: String(item?.child_result ?? 'none').trim() || 'none',
+      }))
       : [];
 
     if (jobStatus.value === 'done' || pdfPath.value) {
@@ -310,16 +286,16 @@ async function markChildResult(recordId: number, isCorrect: boolean) {
     const payload = res?.data ?? res ?? {};
     questionList.value = Array.isArray(payload.questions)
       ? payload.questions.map((item: any, idx: number) => ({
-          id: Number(item?.id ?? 0),
-          record_id: Number(item?.record_id ?? item?.id ?? 0),
-          index: Number(item?.index ?? idx + 1),
-          title: String(item?.title ?? '').trim() || `第 ${idx + 1} 题`,
-          subject: String(item?.subject ?? '').trim(),
-          question_type: String(item?.question_type ?? '').trim(),
-          latex_source: String(item?.latex_source ?? '').trim(),
-          latex_answer: String(item?.latex_answer ?? '').trim(),
-          child_result: String(item?.child_result ?? 'none').trim() || 'none',
-        }))
+        id: Number(item?.id ?? 0),
+        record_id: Number(item?.record_id ?? item?.id ?? 0),
+        index: Number(item?.index ?? idx + 1),
+        title: String(item?.title ?? '').trim() || `第 ${idx + 1} 题`,
+        subject: String(item?.subject ?? '').trim(),
+        question_type: String(item?.question_type ?? '').trim(),
+        latex_source: String(item?.latex_source ?? '').trim(),
+        latex_answer: String(item?.latex_answer ?? '').trim(),
+        child_result: String(item?.child_result ?? 'none').trim() || 'none',
+      }))
       : questionList.value;
     saveMessage.value = isCorrect ? '已登记：孩子做对' : '已登记：孩子做错';
   } catch (error: any) {
@@ -329,18 +305,12 @@ async function markChildResult(recordId: number, isCorrect: boolean) {
   }
 }
 
-function toDisplayLatex(raw: string) {
-  const text = String(raw || '').trim();
-  if (!text) return '暂无题目';
-  try {
-    const data = JSON.parse(text);
-    if (!data || typeof data !== 'object') {
-      return text;
-    }
-    return assembleLatexFromQuestionJson(data) || text;
-  } catch {
-    return text;
-  }
+function formatSubject(subject?: string) {
+  return normalizeSubjectLabel(subject);
+}
+
+function formatQuestionType(questionType?: string) {
+  return normalizeQuestionTypeLabel(questionType);
 }
 
 function childResultText(result?: string) {
@@ -351,6 +321,14 @@ function childResultText(result?: string) {
 </script>
 
 <style scoped>
+.hero {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: calc(var(--spacing) * 3);
+}
+
 .page-wrap {
   gap: 14px;
 }
@@ -398,6 +376,8 @@ function childResultText(result?: string) {
 .hero-content {
   display: grid;
   gap: 14px;
+  padding-top: calc(var(--spacing) * 0);
+  padding: calc(var(--spacing) * 3);
 }
 
 .success-wrap {
@@ -584,6 +564,7 @@ function childResultText(result?: string) {
   margin: 0 0 8px;
   font-size: 13px;
   color: #475569;
+  text-align: center;
 }
 
 .question-list {
@@ -644,6 +625,12 @@ function childResultText(result?: string) {
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
+  justify-content: space-between;
+}
+
+.review-action-row .btn-grp {
+  display: flex;
+  gap: 6px;
 }
 
 .review-tag {
