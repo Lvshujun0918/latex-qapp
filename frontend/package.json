@@ -30,6 +30,7 @@
     "clsx": "^2.1.1",
     "cropperjs": "^1.6.2",
     "dompurify": "^3.3.3",
+    "echarts": "^6.0.0",
     "katex": "^0.16.43",
     "lucide-vue-next": "^1.0.0",
     "markdown-it": "^14.1.1",
