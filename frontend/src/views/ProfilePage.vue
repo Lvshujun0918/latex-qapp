@@ -101,6 +101,7 @@ import {
   setReminderEnabled,
   setReminderTime,
 } from '@/services/reminder';
+import { buildTagSummaries } from '@/utils/tag-analytics';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
@@ -115,6 +116,19 @@ const reminderLoading = ref(false);
 const reminderMessage = ref('');
 
 const androidReminderAvailable = computed(() => isNativeAndroid());
+
+const dueTodayCount = computed(() => {
+  const now = Date.now();
+  return recordStore.records.filter((item) => {
+    const next = Date.parse(item.nextReviewAt || '');
+    return Number.isFinite(next) && next <= now;
+  }).length;
+});
+
+const focusTag = computed(() => {
+  const top = buildTagSummaries(recordStore.records)[0];
+  return top?.tag || '';
+});
 
 const displayInitial = computed(() => {
   const source = authStore.displayName || authStore.username || '用户';
@@ -166,10 +180,13 @@ async function toggleReminder(checked: boolean) {
 
     if (checked) {
       await ensureReminderPermissions();
-      await scheduleDailyReminder(reminderTime.value);
+      await scheduleDailyReminder(reminderTime.value, {
+        focusTag: focusTag.value,
+        dueCount: dueTodayCount.value,
+      });
       reminderEnabled.value = true;
       setReminderEnabled(true);
-      reminderMessage.value = `已开启每日提醒：${reminderTime.value}`;
+      reminderMessage.value = `已开启每日提醒：${reminderTime.value}${focusTag.value ? ` · 聚焦标签 ${focusTag.value}` : ''}`;
       return;
     }
 
@@ -196,8 +213,11 @@ async function onReminderTimeChange(event: Event) {
 
   reminderLoading.value = true;
   try {
-    await scheduleDailyReminder(next);
-    reminderMessage.value = `提醒时间已更新为 ${next}`;
+    await scheduleDailyReminder(next, {
+      focusTag: focusTag.value,
+      dueCount: dueTodayCount.value,
+    });
+    reminderMessage.value = `提醒时间已更新为 ${next}${focusTag.value ? ` · 聚焦标签 ${focusTag.value}` : ''}`;
   } catch (error: any) {
     reminderMessage.value = error?.message || '更新时间失败，请重试';
   } finally {
