@@ -2,11 +2,8 @@
   <section class="tag-graph-shell app-soft-card" :class="{ 'is-dark': theme === 'dark' }">
     <div class="graph-header">
       <div class="graph-copy">
-        <p class="graph-kicker">标签关系图谱</p>
-        <h3>看标签如何成簇、互相关联、决定复习优先级</h3>
-        <p>支持拖拽、缩放、节点点击，帮助把题目管理切换成标签管理。</p>
+        <p class="graph-kicker">知识点关系图谱</p>
       </div>
-
       <div class="graph-toolbar" role="tablist" aria-label="标签图谱视图切换">
         <button
           v-for="mode in graphModes"
@@ -440,9 +437,6 @@ function nodeColor(category: number) {
     linear-gradient(180deg, rgba(248, 250, 252, 0.9), rgba(241, 245, 249, 0.7));
   display: grid;
   gap: 16px;
-  border-radius: 22px;
-  border: 1px solid var(--panel-border);
-  background: var(--panel-bg);
   padding: 14px;
 }
 
@@ -762,10 +756,6 @@ function nodeColor(category: number) {
 
   .graph-copy h3 {
     font-size: 18px;
-  }
-
-  .sidebar-metrics {
-    grid-template-columns: 1fr;
   }
 
   .graph-canvas {

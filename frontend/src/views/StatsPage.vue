@@ -1,10 +1,25 @@
 <template>
   <section class="app-page app-inner-page stats-page" :class="{ 'is-dark': resolvedTheme === 'dark' }">
+
     <header class="app-page-header page-header stats-header">
-      <h1>标签关系中枢</h1>
+      <h1>统计概览</h1>
       <p>先看关系图谱，再看标签指标，复习策略围绕标签网络而不是单题展开。</p>
     </header>
-
+    <article class="insight-item">
+      <p class="insight-title">最需要先复习</p>
+      <p class="insight-main">{{ topPriorityTagText }}</p>
+      <p class="insight-sub">优先级综合错误率、频次、掌握度</p>
+    </article>
+    <article class="insight-item">
+      <p class="insight-title">最稳定知识点</p>
+      <p class="insight-main">{{ bestTagText }}</p>
+      <p class="insight-sub">正确率高，建议降频巡检</p>
+    </article>
+    <article class="insight-item">
+      <p class="insight-title">掌握度低知识点</p>
+      <p class="insight-main">{{ highRiskTagCount }}个</p>
+      <p class="insight-sub">错误率≥50% 或掌握度≤55%</p>
+    </article>
     <TagRelationGraph :records="records" :theme="resolvedTheme" />
 
     <section class="stats-kpi-strip" role="list" aria-label="标签统计概览">
@@ -30,84 +45,24 @@
       </article>
     </section>
 
-    <div class="stats-grid">
-      <Card class="app-page-shell">
-        <CardHeader>
-          <CardTitle>标签优先队列</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div v-if="tagSummaries.length" class="priority-list">
-            <article v-for="(tag, index) in topPriorityTags" :key="tag.tag" class="priority-item">
-              <div class="priority-rank">{{ index + 1 }}</div>
-              <div class="priority-main">
-                <p class="priority-title">{{ tag.tag }}</p>
-                <p class="priority-sub">{{ tag.recordCount }} 题 · 频次 {{ tag.avgReviewCount }} · 掌握度 {{ tag.avgMastery }}%</p>
-                <div class="meter-row" aria-hidden="true">
-                  <div class="meter-track meter-wrong">
-                    <div class="meter-fill" :style="{ width: `${tag.wrongRate}%` }" />
-                  </div>
-                  <span>错 {{ tag.wrongRate }}%</span>
-                </div>
-              </div>
-              <div class="priority-score">{{ tag.priorityScore }}</div>
-            </article>
-          </div>
-          <p v-else class="empty-tip">暂无标签优先级数据。</p>
-        </CardContent>
-      </Card>
-
-      <Card class="app-page-shell">
-        <CardHeader>
-          <CardTitle>关系洞察</CardTitle>
-        </CardHeader>
-        <CardContent class="insight-panel">
-          <article class="insight-item">
-            <p class="insight-title">最需要先复习</p>
-            <p class="insight-main">{{ topPriorityTagText }}</p>
-            <p class="insight-sub">优先级综合错误率、频次、掌握度</p>
-          </article>
-
-          <article class="insight-item">
-            <p class="insight-title">最稳定标签</p>
-            <p class="insight-main">{{ bestTagText }}</p>
-            <p class="insight-sub">正确率高，建议降频巡检</p>
-          </article>
-
-          <article class="insight-item">
-            <p class="insight-title">风险簇规模</p>
-            <p class="insight-main">{{ highRiskTagCount }} 个标签</p>
-            <p class="insight-sub">错误率≥50% 或掌握度≤55%</p>
-          </article>
-        </CardContent>
-      </Card>
-    </div>
-
-    <Card class="app-page-shell">
-      <CardHeader>
-        <CardTitle>标签明细矩阵</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div v-if="tagSummaries.length" class="tag-table-wrap">
-          <div class="tag-table-head">
-            <span>标签</span>
-            <span>正确率</span>
-            <span>错误率</span>
-            <span>复习频次</span>
-            <span>掌握度</span>
-            <span>优先级</span>
-          </div>
-          <div v-for="tag in tagSummaries" :key="tag.tag" class="tag-table-row">
-            <span class="tag-name">{{ tag.tag }}</span>
-            <span>{{ tag.correctRate }}%</span>
-            <span>{{ tag.wrongRate }}%</span>
-            <span>{{ tag.avgReviewCount }}</span>
-            <span>{{ tag.avgMastery }}%</span>
-            <span>{{ tag.priorityScore }}</span>
+    <div v-if="tagSummaries.length" class="priority-list">
+      <article v-for="(tag, index) in topPriorityTags" :key="tag.tag" class="priority-item">
+        <div class="priority-rank">{{ index + 1 }}</div>
+        <div class="priority-main">
+          <p class="priority-title">{{ tag.tag }}</p>
+          <p class="priority-sub">{{ tag.recordCount }} 题 · 频次 {{ tag.avgReviewCount }} · 掌握度 {{ tag.avgMastery
+          }}%</p>
+          <div class="meter-row" aria-hidden="true">
+            <div class="meter-track meter-wrong">
+              <div class="meter-fill" :style="{ width: `${tag.wrongRate}%` }" />
+            </div>
+            <span>错 {{ tag.wrongRate }}%</span>
           </div>
         </div>
-        <p v-else class="empty-tip">暂无标签统计数据。</p>
-      </CardContent>
-    </Card>
+        <div class="priority-score">{{ tag.priorityScore }}</div>
+      </article>
+    </div>
+    <p v-else class="empty-tip">暂无标签优先级数据。</p>
   </section>
 </template>
 
@@ -137,7 +92,7 @@ const dueTodayCount = computed(() => {
 
 const tagSummaries = computed(() => buildTagSummaries(records.value));
 const tagCount = computed(() => tagSummaries.value.length);
-const topPriorityTags = computed(() => tagSummaries.value.slice(0, 8));
+const topPriorityTags = computed(() => tagSummaries.value.slice(0, 5));
 
 const topPriorityTagText = computed(() => {
   if (!tagSummaries.value.length) {
@@ -415,14 +370,6 @@ onMounted(() => {
 }
 
 @media (max-width: 640px) {
-  .stats-kpi-strip {
-    grid-template-columns: 1fr;
-  }
-
-  .priority-item {
-    grid-template-columns: 24px 1fr;
-  }
-
   .priority-score {
     grid-column: 2;
     justify-self: end;
