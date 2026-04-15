@@ -1,145 +1,124 @@
 <template>
-  <section class="app-page app-inner-page page-wrap" :class="{ 'is-dark': resolvedTheme === 'dark' }">
-    <header class="app-page-header page-header">
-      <h1>统计</h1>
-      <p>看清增长趋势、学科结构和下一步复习重点。</p>
+  <section class="app-page app-inner-page stats-page" :class="{ 'is-dark': resolvedTheme === 'dark' }">
+    <header class="app-page-header page-header stats-header">
+      <h1>标签关系中枢</h1>
+      <p>先看关系图谱，再看标签指标，复习策略围绕标签网络而不是单题展开。</p>
     </header>
 
-    <div class="kpi-grid">
-      <Card class="app-page-shell kpi-card">
-        <CardContent class="kpi-content">
-          <div class="kpi-icon icon-total"><FileText class="h-4 w-4" /></div>
-          <div>
-            <p class="kpi-label">总错题</p>
-            <p class="kpi-value">{{ totalCount }}</p>
+    <TagRelationGraph :records="records" :theme="resolvedTheme" />
+
+    <section class="stats-kpi-strip" role="list" aria-label="标签统计概览">
+      <article class="kpi-item" role="listitem">
+        <p>题目总量</p>
+        <strong>{{ totalCount }}</strong>
+        <span>全部错题节点</span>
+      </article>
+      <article class="kpi-item" role="listitem">
+        <p>标签数量</p>
+        <strong>{{ tagCount }}</strong>
+        <span>可追踪知识标签</span>
+      </article>
+      <article class="kpi-item" role="listitem">
+        <p>累计复习</p>
+        <strong>{{ totalReviews }}</strong>
+        <span>标签网络总复习频次</span>
+      </article>
+      <article class="kpi-item" role="listitem">
+        <p>今日到期</p>
+        <strong>{{ dueTodayCount }}</strong>
+        <span>待处理复习任务</span>
+      </article>
+    </section>
+
+    <div class="stats-grid">
+      <Card class="app-page-shell">
+        <CardHeader>
+          <CardTitle>标签优先队列</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div v-if="tagSummaries.length" class="priority-list">
+            <article v-for="(tag, index) in topPriorityTags" :key="tag.tag" class="priority-item">
+              <div class="priority-rank">{{ index + 1 }}</div>
+              <div class="priority-main">
+                <p class="priority-title">{{ tag.tag }}</p>
+                <p class="priority-sub">{{ tag.recordCount }} 题 · 频次 {{ tag.avgReviewCount }} · 掌握度 {{ tag.avgMastery }}%</p>
+                <div class="meter-row" aria-hidden="true">
+                  <div class="meter-track meter-wrong">
+                    <div class="meter-fill" :style="{ width: `${tag.wrongRate}%` }" />
+                  </div>
+                  <span>错 {{ tag.wrongRate }}%</span>
+                </div>
+              </div>
+              <div class="priority-score">{{ tag.priorityScore }}</div>
+            </article>
           </div>
+          <p v-else class="empty-tip">暂无标签优先级数据。</p>
         </CardContent>
       </Card>
 
-      <Card class="app-page-shell kpi-card">
-        <CardContent class="kpi-content">
-          <div class="kpi-icon icon-mastery"><Gauge class="h-4 w-4" /></div>
-          <div>
-            <p class="kpi-label">平均掌握度</p>
-            <p class="kpi-value">{{ averageMastery }}%</p>
-          </div>
-        </CardContent>
-      </Card>
+      <Card class="app-page-shell">
+        <CardHeader>
+          <CardTitle>关系洞察</CardTitle>
+        </CardHeader>
+        <CardContent class="insight-panel">
+          <article class="insight-item">
+            <p class="insight-title">最需要先复习</p>
+            <p class="insight-main">{{ topPriorityTagText }}</p>
+            <p class="insight-sub">优先级综合错误率、频次、掌握度</p>
+          </article>
 
-      <Card class="app-page-shell kpi-card">
-        <CardContent class="kpi-content">
-          <div class="kpi-icon icon-review"><RotateCcw class="h-4 w-4" /></div>
-          <div>
-            <p class="kpi-label">累计复习次数</p>
-            <p class="kpi-value">{{ totalReviews }}</p>
-          </div>
-        </CardContent>
-      </Card>
+          <article class="insight-item">
+            <p class="insight-title">最稳定标签</p>
+            <p class="insight-main">{{ bestTagText }}</p>
+            <p class="insight-sub">正确率高，建议降频巡检</p>
+          </article>
 
-      <Card class="app-page-shell kpi-card">
-        <CardContent class="kpi-content">
-          <div class="kpi-icon icon-due"><Clock3 class="h-4 w-4" /></div>
-          <div>
-            <p class="kpi-label">今日到期复习</p>
-            <p class="kpi-value">{{ dueTodayCount }}</p>
-          </div>
+          <article class="insight-item">
+            <p class="insight-title">风险簇规模</p>
+            <p class="insight-main">{{ highRiskTagCount }} 个标签</p>
+            <p class="insight-sub">错误率≥50% 或掌握度≤55%</p>
+          </article>
         </CardContent>
       </Card>
     </div>
-
-    <div class="trend-legend">
-      <span><i class="dot dot-new" />新增错题</span>
-      <span><i class="dot dot-review" />复习记录</span>
-    </div>
-
-    <div class="trend-wrap" v-if="trendMaxValue > 0">
-      <svg viewBox="0 0 320 160" class="trend-chart" role="img" aria-label="最近14天新增与复习趋势">
-        <line x1="12" y1="132" x2="308" y2="132" class="axis" />
-        <polyline :points="trendPointsNew" class="line-new" />
-        <polyline :points="trendPointsReview" class="line-review" />
-        <circle
-          v-for="(v, idx) in recentNewSeries"
-          :key="`n-${idx}`"
-          :cx="trendX(idx)"
-          :cy="trendY(v)"
-          r="2.1"
-          class="point-new"
-        />
-        <circle
-          v-for="(v, idx) in recentReviewSeries"
-          :key="`r-${idx}`"
-          :cx="trendX(idx)"
-          :cy="trendY(v)"
-          r="2.1"
-          class="point-review"
-        />
-      </svg>
-
-      <div class="trend-x-labels">
-        <span>{{ recentDayLabels[0] }}</span>
-        <span>{{ recentDayLabels[Math.floor(recentDayLabels.length / 2)] }}</span>
-        <span>{{ recentDayLabels[recentDayLabels.length - 1] }}</span>
-      </div>
-    </div>
-
-    <p v-else class="empty-tip">最近14天暂无可视化趋势数据。</p>
-    <div v-if="subjectRows.length" class="subject-viz-wrap">
-      <div class="subject-donut" :style="subjectDonutStyle">
-        <div class="subject-donut-inner">
-          <p>总量</p>
-          <strong>{{ totalCount }}</strong>
-        </div>
-      </div>
-
-      <div class="subject-list">
-        <div v-for="row in subjectRows" :key="row.subject" class="subject-row">
-          <div class="subject-head">
-            <span class="subject-name"><i class="dot" :style="{ background: row.color }" />{{ formatSubject(row.subject) }}</span>
-            <span>{{ row.count }} 题 · {{ row.ratio }}%</span>
-          </div>
-          <div class="subject-track">
-            <div class="subject-bar" :style="{ width: `${row.ratio}%`, background: row.color }" />
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <p v-else class="empty-tip">暂无统计数据，先去录入题目吧。</p>
 
     <Card class="app-page-shell">
       <CardHeader>
-        <CardTitle>复习建议</CardTitle>
+        <CardTitle>标签明细矩阵</CardTitle>
       </CardHeader>
-      <CardContent class="insight-panel">
-        <div class="insight-item">
-          <p class="insight-title">优先学科</p>
-          <p class="insight-main">{{ topWeakSubjectText }}</p>
-          <p class="insight-sub">按平均掌握度最低优先排序</p>
+      <CardContent>
+        <div v-if="tagSummaries.length" class="tag-table-wrap">
+          <div class="tag-table-head">
+            <span>标签</span>
+            <span>正确率</span>
+            <span>错误率</span>
+            <span>复习频次</span>
+            <span>掌握度</span>
+            <span>优先级</span>
+          </div>
+          <div v-for="tag in tagSummaries" :key="tag.tag" class="tag-table-row">
+            <span class="tag-name">{{ tag.tag }}</span>
+            <span>{{ tag.correctRate }}%</span>
+            <span>{{ tag.wrongRate }}%</span>
+            <span>{{ tag.avgReviewCount }}</span>
+            <span>{{ tag.avgMastery }}%</span>
+            <span>{{ tag.priorityScore }}</span>
+          </div>
         </div>
-
-        <div class="insight-item">
-          <p class="insight-title">今日动作</p>
-          <p class="insight-main">{{ dueTodayCount }} 题到期</p>
-          <p class="insight-sub">建议先完成到期题，再处理新错题</p>
-        </div>
-
-        <div class="insight-item">
-          <p class="insight-title">高频复习池</p>
-          <p class="insight-main">{{ highReviewCount }} 题</p>
-          <p class="insight-sub">复习次数≥3，适合做错因归类</p>
-        </div>
+        <p v-else class="empty-tip">暂无标签统计数据。</p>
       </CardContent>
     </Card>
   </section>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, type CSSProperties } from 'vue';
+import { computed, onMounted } from 'vue';
 import { storeToRefs } from 'pinia';
-import { Clock3, FileText, Gauge, RotateCcw } from 'lucide-vue-next';
 import { useTheme } from '@/composables/useTheme';
 import { useRecordStore } from '@/stores/record';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { buildTagSummaries } from '@/utils/tag-analytics';
+import TagRelationGraph from '@/components/TagRelationGraph.vue';
 
 const recordStore = useRecordStore();
 const { records } = storeToRefs(recordStore);
@@ -147,372 +126,174 @@ const { resolvedTheme } = useTheme();
 
 const totalCount = computed(() => records.value.length);
 const totalReviews = computed(() => records.value.reduce((sum, item) => sum + (item.reviewCount || 0), 0));
-const now = computed(() => Date.now());
-const averageMastery = computed(() => {
-  if (!records.value.length) {
-    return 0;
-  }
-  const total = records.value.reduce((sum, item) => sum + (item.masteryLevel || 0), 0);
-  return Math.round(total / records.value.length);
-});
 
 const dueTodayCount = computed(() => {
-  const ms = now.value;
+  const now = Date.now();
   return records.value.filter((item) => {
     const next = Date.parse(item.nextReviewAt || '');
-    return Number.isFinite(next) && next <= ms;
+    return Number.isFinite(next) && next <= now;
   }).length;
 });
 
-const highReviewCount = computed(() => records.value.filter((item) => (item.reviewCount || 0) >= 3).length);
+const tagSummaries = computed(() => buildTagSummaries(records.value));
+const tagCount = computed(() => tagSummaries.value.length);
+const topPriorityTags = computed(() => tagSummaries.value.slice(0, 8));
 
-const chartPalette = ['var(--color-chart-1)', 'var(--color-chart-2)', 'var(--color-chart-3)', 'var(--color-chart-4)', 'var(--color-chart-5)'];
-
-const subjectRows = computed(() => {
-  const map = new Map<string, number>();
-  const masteryMap = new Map<string, number[]>();
-  records.value.forEach((item) => {
-    const key = item.subject || '未知';
-    map.set(key, (map.get(key) || 0) + 1);
-    const arr = masteryMap.get(key) || [];
-    arr.push(Number(item.masteryLevel || 0));
-    masteryMap.set(key, arr);
-  });
-  const total = Math.max(records.value.length, 1);
-  return [...map.entries()]
-    .map(([subject, count], index) => {
-      const masteryList = masteryMap.get(subject) || [];
-      const avgMastery = masteryList.length
-        ? Math.round(masteryList.reduce((sum, v) => sum + v, 0) / masteryList.length)
-        : 0;
-      return {
-        subject,
-        count,
-        ratio: Math.round((count / total) * 100),
-        avgMastery,
-        color: chartPalette[index % chartPalette.length],
-      };
-    })
-    .sort((a, b) => b.count - a.count);
-});
-
-const topWeakSubjectText = computed(() => {
-  if (!subjectRows.value.length) {
+const topPriorityTagText = computed(() => {
+  if (!tagSummaries.value.length) {
     return '暂无数据';
   }
-  const weak = [...subjectRows.value].sort((a, b) => a.avgMastery - b.avgMastery)[0];
-  return `${formatSubject(weak.subject)}（${weak.avgMastery}%）`;
+  const top = tagSummaries.value[0];
+  return `${top.tag}（错误率 ${top.wrongRate}% · 频次 ${top.avgReviewCount}）`;
 });
 
-const subjectDonutStyle = computed<CSSProperties>(() => {
-  return {
-    background: subjectRows.value[0]?.color || 'var(--muted)',
-  };
-});
-
-const recentDayLabels = computed(() => {
-  const labels: string[] = [];
-  const base = new Date();
-  base.setHours(0, 0, 0, 0);
-
-  for (let i = 13; i >= 0; i -= 1) {
-    const d = new Date(base);
-    d.setDate(base.getDate() - i);
-    labels.push(`${d.getMonth() + 1}/${d.getDate()}`);
+const bestTagText = computed(() => {
+  if (!tagSummaries.value.length) {
+    return '暂无数据';
   }
-
-  return labels;
+  const best = [...tagSummaries.value].sort((a, b) => b.correctRate - a.correctRate || a.wrongRate - b.wrongRate)[0];
+  return `${best.tag}（正确率 ${best.correctRate}%）`;
 });
 
-const recentNewSeries = computed(() => {
-  const counter = new Map<string, number>();
-  records.value.forEach((item) => {
-    const date = new Date(item.createdAt || '');
-    if (Number.isNaN(+date)) {
-      return;
-    }
-    const key = `${date.getMonth() + 1}/${date.getDate()}`;
-    counter.set(key, (counter.get(key) || 0) + 1);
-  });
-  return recentDayLabels.value.map((label) => counter.get(label) || 0);
-});
-
-const recentReviewSeries = computed(() => {
-  const counter = new Map<string, number>();
-  records.value.forEach((item) => {
-    const date = new Date(item.lastReviewedAt || '');
-    if (Number.isNaN(+date)) {
-      return;
-    }
-    const key = `${date.getMonth() + 1}/${date.getDate()}`;
-    counter.set(key, (counter.get(key) || 0) + 1);
-  });
-  return recentDayLabels.value.map((label) => counter.get(label) || 0);
-});
-
-const trendMaxValue = computed(() => Math.max(1, ...recentNewSeries.value, ...recentReviewSeries.value));
-
-function trendX(index: number) {
-  if (recentDayLabels.value.length <= 1) {
-    return 12;
-  }
-  return 12 + (296 * index) / (recentDayLabels.value.length - 1);
-}
-
-function trendY(value: number) {
-  return 132 - (112 * value) / trendMaxValue.value;
-}
-
-const trendPointsNew = computed(() => recentNewSeries.value.map((v, i) => `${trendX(i)},${trendY(v)}`).join(' '));
-const trendPointsReview = computed(() => recentReviewSeries.value.map((v, i) => `${trendX(i)},${trendY(v)}`).join(' '));
-
-const recentRows = computed(() => {
-  return [...records.value]
-    .sort((a, b) => +new Date(b.updatedAt) - +new Date(a.updatedAt))
-    .slice(0, 6);
-});
+const highRiskTagCount = computed(() =>
+  tagSummaries.value.filter((tag) => tag.wrongRate >= 50 || tag.avgMastery <= 55).length,
+);
 
 onMounted(() => {
   if (!records.value.length) {
     recordStore.reload();
   }
 });
-
-function formatSubject(subject?: string) {
-  const value = String(subject || '').trim().toLowerCase();
-  if (value === 'math' || value === '数学') return '数学';
-  if (value === 'physics' || value === '物理') return '物理';
-  if (value === 'chemistry' || value === '化学') return '化学';
-  if (value === 'biology' || value === '生物') return '生物';
-  return subject || '未知';
-}
 </script>
 
 <style scoped>
-.page-wrap {
+.stats-page {
   gap: 14px;
 }
 
-.kpi-grid {
+.stats-header :deep(p) {
+  max-width: 620px;
+}
+
+.stats-kpi-strip {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 10px;
 }
 
-.kpi-card {
-  min-height: 88px;
-}
-
-.kpi-content {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 0px;
-}
-
-.kpi-icon {
-  width: 30px;
-  height: 30px;
-  border-radius: 10px;
+.kpi-item {
+  border-radius: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  background: rgba(248, 250, 252, 0.72);
+  padding: 12px;
   display: grid;
-  place-items: center;
+  gap: 4px;
 }
 
-.icon-total {
-  color: #2563eb;
-  background: rgba(37, 99, 235, 0.12);
-}
-
-.icon-mastery {
-  color: #059669;
-  background: rgba(5, 150, 105, 0.12);
-}
-
-.icon-review {
-  color: #d97706;
-  background: rgba(217, 119, 6, 0.12);
-}
-
-.icon-due {
-  color: #7c3aed;
-  background: rgba(124, 58, 237, 0.12);
-}
-
-.kpi-label {
+.kpi-item p {
   margin: 0;
   font-size: 12px;
   color: #64748b;
 }
 
-.kpi-value {
-  margin: 2px 0 0;
-  font-size: 20px;
+.kpi-item strong {
+  font-size: 24px;
+  line-height: 1;
+  color: #0f172a;
+}
+
+.kpi-item span {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: 1.25fr 1fr;
+  gap: 12px;
+}
+
+.priority-list {
+  display: grid;
+  gap: 10px;
+}
+
+.priority-item {
+  display: grid;
+  grid-template-columns: 30px 1fr auto;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: 12px;
+  background: rgba(248, 250, 252, 0.72);
+  padding: 10px;
+}
+
+.priority-rank {
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: #fff;
+  background: linear-gradient(135deg, #f97316, #ea580c);
+}
+
+.priority-main {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.priority-title {
+  margin: 0;
+  font-size: 14px;
   font-weight: 700;
   color: #0f172a;
 }
 
-.subject-panel {
-  display: grid;
-  gap: 8px;
-}
-
-.chart-grid {
-  display: grid;
-  grid-template-columns: 1.35fr 1fr;
-  gap: 10px;
-}
-
-.trend-panel {
-  display: grid;
-  gap: 10px;
-}
-
-.trend-legend {
-  display: flex;
-  gap: 14px;
-  flex-wrap: wrap;
+.priority-sub {
+  margin: 0;
   font-size: 12px;
   color: #64748b;
 }
 
-.dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 999px;
-  display: inline-block;
-  margin-right: 6px;
-  transform: translateY(1px);
-}
-
-.dot-new {
-  background: #2563eb;
-}
-
-.dot-review {
-  background: #f97316;
-}
-
-.trend-wrap {
-  border-radius: 14px;
-  border: 1px solid rgba(148, 163, 184, 0.25);
-  background: rgba(248, 250, 252, 0.7);
-  padding: 8px 10px 10px;
-}
-
-.trend-chart {
-  width: 100%;
-  height: auto;
-}
-
-.axis {
-  stroke: rgba(148, 163, 184, 0.55);
-  stroke-width: 1;
-}
-
-.line-new {
-  fill: none;
-  stroke: #2563eb;
-  stroke-width: 2.4;
-}
-
-.line-review {
-  fill: none;
-  stroke: #f97316;
-  stroke-width: 2.4;
-}
-
-.point-new {
-  fill: #2563eb;
-}
-
-.point-review {
-  fill: #f97316;
-}
-
-.trend-x-labels {
-  display: flex;
-  justify-content: space-between;
-  margin-top: 2px;
-  font-size: 11px;
-  color: #64748b;
-}
-
-.subject-list {
-  display: grid;
-  gap: 10px;
-}
-
-.subject-viz-wrap {
-  display: grid;
-  grid-template-columns: 132px 1fr;
-  gap: 12px;
-  align-items: center;
-  border-radius: 14px;
-  border: 1px solid rgba(148, 163, 184, 0.25);
-  background: rgba(248, 250, 252, 0.7);
-  padding: 8px 10px 10px;
-}
-
-.subject-donut {
-  width: 120px;
-  height: 120px;
-  border-radius: 999px;
-  display: grid;
-  place-items: center;
-  background: var(--muted);
-}
-
-.subject-donut-inner {
-  width: 74px;
-  height: 74px;
-  border-radius: 999px;
-  display: grid;
-  place-content: center;
-  text-align: center;
-  background: rgba(255, 255, 255, 0.9);
-}
-
-.subject-donut-inner p {
-  margin: 0;
-  font-size: 11px;
-  color: #64748b;
-}
-
-.subject-donut-inner strong {
-  margin-top: 2px;
-  font-size: 18px;
-  color: #0f172a;
-}
-
-.subject-row {
-  display: grid;
-  gap: 6px;
-}
-
-.subject-head {
+.meter-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  font-size: 13px;
-  color: #334155;
+  gap: 8px;
 }
 
-.subject-name {
-  display: inline-flex;
-  align-items: center;
-}
-
-.subject-track {
-  width: 100%;
+.meter-track {
   height: 8px;
+  flex: 1;
   border-radius: 999px;
-  background: rgba(148, 163, 184, 0.2);
   overflow: hidden;
+  background: rgba(148, 163, 184, 0.2);
 }
 
-.subject-bar {
+.meter-fill {
   height: 100%;
   border-radius: 999px;
+}
+
+.meter-wrong .meter-fill {
+  background: #ef4444;
+}
+
+.meter-row span {
+  width: 52px;
+  text-align: right;
+  font-size: 11px;
+  color: #64748b;
+}
+
+.priority-score {
+  font-size: 20px;
+  font-weight: 800;
+  color: #0f172a;
 }
 
 .insight-panel {
@@ -521,10 +302,10 @@ function formatSubject(subject?: string) {
 }
 
 .insight-item {
-  border: 1px solid rgba(148, 163, 184, 0.28);
+  border: 1px solid rgba(148, 163, 184, 0.26);
   border-radius: 12px;
-  background: rgba(248, 250, 252, 0.74);
-  padding: 10px 12px;
+  background: rgba(248, 250, 252, 0.72);
+  padding: 11px 12px;
   display: grid;
   gap: 3px;
 }
@@ -548,37 +329,39 @@ function formatSubject(subject?: string) {
   color: #64748b;
 }
 
-.recent-list {
+.tag-table-wrap {
   display: grid;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.tag-table-head,
+.tag-table-row {
+  min-width: 760px;
+  display: grid;
+  grid-template-columns: 1.4fr repeat(5, minmax(90px, 1fr));
+  align-items: center;
   gap: 10px;
 }
 
-.recent-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 10px 12px;
-  border-radius: 12px;
-  border: 1px solid rgba(148, 163, 184, 0.28);
+.tag-table-head {
+  font-size: 12px;
+  color: #64748b;
 }
 
-.recent-title {
-  margin: 0;
-  font-size: 14px;
+.tag-table-row {
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: 10px;
+  background: rgba(248, 250, 252, 0.72);
+  padding: 9px 10px;
+  font-size: 13px;
+  color: #334155;
+}
+
+.tag-name {
+  font-weight: 700;
   color: #0f172a;
-}
-
-.recent-meta {
-  margin: 4px 0 0;
-  font-size: 12px;
-  color: #64748b;
-}
-
-.recent-time {
-  font-size: 12px;
-  color: #64748b;
-  white-space: nowrap;
 }
 
 .empty-tip {
@@ -587,54 +370,63 @@ function formatSubject(subject?: string) {
   font-size: 13px;
 }
 
-.is-dark .kpi-label,
-.is-dark .recent-meta,
-.is-dark .recent-time,
-.is-dark .empty-tip,
-.is-dark .trend-legend,
-.is-dark .trend-x-labels,
-.is-dark .subject-donut-inner p,
+.is-dark .kpi-item,
+.is-dark .priority-item,
+.is-dark .insight-item,
+.is-dark .tag-table-row {
+  border-color: rgba(148, 163, 184, 0.22);
+  background: rgba(30, 41, 59, 0.46);
+}
+
+.is-dark .kpi-item p,
+.is-dark .kpi-item span,
+.is-dark .priority-sub,
 .is-dark .insight-title,
-.is-dark .insight-sub {
+.is-dark .insight-sub,
+.is-dark .tag-table-head,
+.is-dark .meter-row span,
+.is-dark .empty-tip {
   color: #cbd5e1;
 }
 
-.is-dark .kpi-value,
-.is-dark .recent-title,
-.is-dark .subject-head,
-.is-dark .subject-donut-inner strong,
-.is-dark .insight-main {
+.is-dark .kpi-item strong,
+.is-dark .priority-title,
+.is-dark .priority-score,
+.is-dark .insight-main,
+.is-dark .tag-name,
+.is-dark .tag-table-row {
   color: #f1f5f9;
 }
 
-.is-dark .recent-item {
-  border-color: rgba(148, 163, 184, 0.22);
-  background: rgba(30, 41, 59, 0.42);
+.is-dark .meter-track {
+  background: rgba(148, 163, 184, 0.26);
 }
 
-.is-dark .trend-wrap,
-.is-dark .insight-item,
-.is-dark .subject-viz-wrap {
-  border-color: rgba(148, 163, 184, 0.22);
-  background: rgba(30, 41, 59, 0.42);
-}
-
-.is-dark .subject-donut-inner {
-  background: rgba(15, 23, 42, 0.82);
+@media (max-width: 1100px) {
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 900px) {
-  .kpi-grid {
+  .stats-kpi-strip {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+}
 
-  .chart-grid {
+@media (max-width: 640px) {
+  .stats-kpi-strip {
     grid-template-columns: 1fr;
   }
 
-  .subject-viz-wrap {
-    grid-template-columns: 1fr;
-    justify-items: center;
+  .priority-item {
+    grid-template-columns: 24px 1fr;
+  }
+
+  .priority-score {
+    grid-column: 2;
+    justify-self: end;
+    font-size: 16px;
   }
 }
 </style>
